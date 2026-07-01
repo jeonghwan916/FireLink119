@@ -2,91 +2,117 @@ using FireLink119.Fire;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
-public class Extinguisher : MonoBehaviour
+namespace FireLink119.Extinguisher
 {
-    [Header("Particle")]
-    [SerializeField] private ParticleSystem _smokeParticle;
-
-    [Header("Raycast")]
-    [SerializeField] private Transform _rayOrigin;
-    [SerializeField] private float _range = 5f;
-    [SerializeField] private LayerMask _fireLayer;
-
-    private XRGrabInteractable _grabInteractable;
-    private bool isFiring = false;
-    
-    private AudioSource _extinguisherSFX;
-    
-    private void Awake()
+    public class Extinguisher : MonoBehaviour
     {
-        _grabInteractable = GetComponent<XRGrabInteractable>();
-        _extinguisherSFX = GetComponent<AudioSource>();
+        [Header("Particle")]
+        [SerializeField] private ParticleSystem _smokeParticle;
 
-        if (_rayOrigin == null)
-            _rayOrigin = transform;
-    }
+        [Header("Raycast")]
+        [SerializeField] private Transform _rayOrigin;
+        [SerializeField] private float _range = 5f;
+        [SerializeField] private LayerMask _fireLayer;
 
-    private void OnEnable()
-    {
-        _grabInteractable.activated.AddListener(OnFireStart);
-        _grabInteractable.deactivated.AddListener(OnFireEnd);
-    }
+        [Header("Safety Pin")]
+        [SerializeField] private XRSocketInteractor _safetyPinSocket;
 
-    private void OnDisable()
-    {
-        _grabInteractable.activated.RemoveListener(OnFireStart);
-        _grabInteractable.deactivated.RemoveListener(OnFireEnd);
-    }
+        private XRGrabInteractable _grabInteractable;
+        private bool isFiring = false;
+        private bool _isSafetyPinPulled = false;
 
-    private void OnFireStart(ActivateEventArgs args)
-    {
-        if (_smokeParticle != null && !isFiring)
-            _smokeParticle.Play();
-        
-        if (_extinguisherSFX != null && !_extinguisherSFX.isPlaying)
-            _extinguisherSFX.Play();
+        private AudioSource _extinguisherSFX;
 
-        isFiring = true;
-    }
-
-    private void OnFireEnd(DeactivateEventArgs args)
-    {
-        if (_smokeParticle != null && isFiring)
-            _smokeParticle.Stop();
-        
-        if (_extinguisherSFX != null)
-            _extinguisherSFX.Stop();
-
-        isFiring = false;
-    }
-
-    private void Update()
-    {
-        Debug.DrawRay(_rayOrigin.position, _rayOrigin.forward * _range, Color.red);
-
-        if (!isFiring) return;
-
-        if (Physics.Raycast(_rayOrigin.position, _rayOrigin.forward, out RaycastHit hit, _range, _fireLayer, QueryTriggerInteraction.Collide))
+        private void Awake()
         {
-            FireObject fire = hit.collider.GetComponentInParent<FireObject>();
+            _grabInteractable = GetComponent<XRGrabInteractable>();
+            _extinguisherSFX = GetComponent<AudioSource>();
 
-            if (fire != null)
+            if (_rayOrigin == null)
+                _rayOrigin = transform;
+        }
+
+        private void OnEnable()
+        {
+            _grabInteractable.activated.AddListener(OnFireStart);
+            _grabInteractable.deactivated.AddListener(OnFireEnd);
+
+            if (_safetyPinSocket != null)
+                _safetyPinSocket.selectExited.AddListener(OnSafetyPinSocketExited);
+        }
+
+        private void OnDisable()
+        {
+            _grabInteractable.activated.RemoveListener(OnFireStart);
+            _grabInteractable.deactivated.RemoveListener(OnFireEnd);
+
+            if (_safetyPinSocket != null)
+                _safetyPinSocket.selectExited.RemoveListener(OnSafetyPinSocketExited);
+        }
+
+        private void OnSafetyPinSocketExited(SelectExitEventArgs args)
+        {
+            if (_isSafetyPinPulled)
+                return;
+
+            _isSafetyPinPulled = true;
+            _safetyPinSocket.socketActive = false;
+        }
+
+        private void OnFireStart(ActivateEventArgs args)
+        {
+            if (!_isSafetyPinPulled)
+                return;
+
+            if (_smokeParticle != null && !isFiring)
+                _smokeParticle.Play();
+
+            if (_extinguisherSFX != null && !_extinguisherSFX.isPlaying)
+                _extinguisherSFX.Play();
+
+            isFiring = true;
+        }
+
+        private void OnFireEnd(DeactivateEventArgs args)
+        {
+            if (_smokeParticle != null && isFiring)
+                _smokeParticle.Stop();
+
+            if (_extinguisherSFX != null)
+                _extinguisherSFX.Stop();
+
+            isFiring = false;
+        }
+
+        private void Update()
+        {
+            Debug.DrawRay(_rayOrigin.position, _rayOrigin.forward * _range, Color.red);
+
+            if (!isFiring) return;
+
+            if (Physics.Raycast(_rayOrigin.position, _rayOrigin.forward, out RaycastHit hit, _range, _fireLayer, QueryTriggerInteraction.Collide))
             {
-                fire.TakeExtinguish(Time.deltaTime);
+                FireObject fire = hit.collider.GetComponentInParent<FireObject>();
+
+                if (fire != null)
+                {
+                    fire.TakeExtinguish(Time.deltaTime);
+                }
             }
         }
-    }
 
-    private void OnDrawGizmosSelected()
-    {
-        Transform origin = _rayOrigin != null ? _rayOrigin : transform;
+        private void OnDrawGizmosSelected()
+        {
+            Transform origin = _rayOrigin != null ? _rayOrigin : transform;
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawLine(origin.position, origin.position + origin.forward * _range);
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(origin.position, origin.position + origin.forward * _range);
 
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(origin.position, 0.05f);
-        Gizmos.DrawWireSphere(origin.position + origin.forward * _range, 0.08f);
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(origin.position, 0.05f);
+            Gizmos.DrawWireSphere(origin.position + origin.forward * _range, 0.08f);
+        }
     }
 }

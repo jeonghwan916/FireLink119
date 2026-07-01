@@ -1,13 +1,13 @@
 using FireLink119.Player;
 using UnityEngine;
 
-public class SmokeObject : MonoBehaviour
+public class SmokeArea : MonoBehaviour
 {
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
-            PlayerCough playerCough = other.GetComponent<PlayerCough>();
+            PlayerCough playerCough = other.GetComponentInParent<PlayerCough>();
 
             if (playerCough != null)
             {

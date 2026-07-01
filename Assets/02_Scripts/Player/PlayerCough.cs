@@ -8,6 +8,8 @@ namespace FireLink119.Player
         [Header("HMD")]
         [SerializeField] private Transform _hmdCamera;
         [SerializeField] private float _crouchThreshold = 0.35f;
+        [SerializeField] private float _calibrationDuration = 1.0f;
+        [SerializeField] private float _minimumValidHeight = 0.5f;
 
         [Header("Audio")]
         [SerializeField] private AudioClip _coughClip;
@@ -18,6 +20,7 @@ namespace FireLink119.Player
         [SerializeField] private float _coughDelay = 3.0f;
 
         private float _standingHeight;
+        private bool _isHeightCalibrated;
         private Coroutine _coughCoroutine;
 
         private void Awake()
@@ -25,11 +28,38 @@ namespace FireLink119.Player
             _audioSource = GetComponent<AudioSource>();
         }
 
-        private void Start()
+        private IEnumerator Start()
         {
-            if (_hmdCamera != null)
+            yield return CalibrateStandingHeight();
+        }
+
+        private IEnumerator CalibrateStandingHeight()
+        {
+            if (_hmdCamera == null)
+                yield break;
+
+            float elapsed = 0f;
+            float heightSum = 0f;
+            int sampleCount = 0;
+
+            while (elapsed < _calibrationDuration)
             {
-                _standingHeight = _hmdCamera.localPosition.y;
+                float height = _hmdCamera.localPosition.y;
+
+                if (height >= _minimumValidHeight)
+                {
+                    heightSum += height;
+                    sampleCount++;
+                    elapsed += Time.deltaTime;
+                }
+
+                yield return null;
+            }
+
+            if (sampleCount > 0)
+            {
+                _standingHeight = heightSum / sampleCount;
+                _isHeightCalibrated = true;
             }
         }
 
@@ -65,11 +95,10 @@ namespace FireLink119.Player
 
         private bool IsCrouching()
         {
-            if (_hmdCamera == null)
+            if (_hmdCamera == null || !_isHeightCalibrated)
                 return false;
 
             float currentHeight = _hmdCamera.localPosition.y;
-
             return currentHeight < _standingHeight - _crouchThreshold;
         }
 

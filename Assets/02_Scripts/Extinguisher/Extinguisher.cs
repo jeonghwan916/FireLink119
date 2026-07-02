@@ -45,6 +45,8 @@ namespace FireLink119.Extinguisher
         private XRGrabInteractable _grabInteractable;
         private AudioSource _extinguisherSFX;
         private float _nextPoseSendTime;
+        private float _nextPoseDebugTime;
+        private float _nextPoseReceiveDebugTime;
         private bool _isSpawned;
         private bool _lastRenderedFiring;
         private bool _lastRenderedSafetyPinPulled;
@@ -142,6 +144,12 @@ namespace FireLink119.Extinguisher
                 _nextPoseSendTime = Time.time + _poseSendInterval;
 
                 Transform rayOrigin = GetRayOrigin();
+                if (Time.time >= _nextPoseDebugTime)
+                {
+                    _nextPoseDebugTime = Time.time + 0.5f;
+                    Debug.Log($"[Extinguisher][SendPose] local={Runner.LocalPlayer} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy} pos={transform.position} rayPos={rayOrigin.position}");
+                }
+
                 RPC_SendHeldPose(
                     transform.position,
                     transform.rotation,
@@ -167,11 +175,13 @@ namespace FireLink119.Extinguisher
 
         private void OnGrabbed(SelectEnterEventArgs args)
         {
+            Debug.Log($"[Extinguisher][OnGrabbed] local={GetLocalPlayerDebug()} hasState={HasStateAuthority} ready={IsNetworkReady} held={NetworkIsHeld} heldByLocal={IsHeldByLocalPlayer} pos={transform.position}");
             RequestGrab();
         }
 
         private void OnReleased(SelectExitEventArgs args)
         {
+            Debug.Log($"[Extinguisher][OnReleased] local={GetLocalPlayerDebug()} hasState={HasStateAuthority} ready={IsNetworkReady} held={NetworkIsHeld} heldByLocal={IsHeldByLocalPlayer} pos={transform.position}");
             RequestRelease();
         }
 
@@ -195,8 +205,11 @@ namespace FireLink119.Extinguisher
         {
             if (!IsNetworkReady)
             {
+                Debug.LogWarning("[Extinguisher][RequestGrab] ignored because network is not ready.");
                 return;
             }
+
+            Debug.Log($"[Extinguisher][RequestGrab] local={Runner.LocalPlayer} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
 
             if (HasStateAuthority)
             {
@@ -211,8 +224,11 @@ namespace FireLink119.Extinguisher
         {
             if (!IsNetworkReady)
             {
+                Debug.LogWarning("[Extinguisher][RequestRelease] ignored because network is not ready.");
                 return;
             }
+
+            Debug.Log($"[Extinguisher][RequestRelease] local={Runner.LocalPlayer} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
 
             if (HasStateAuthority)
             {
@@ -258,12 +274,14 @@ namespace FireLink119.Extinguisher
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
         private void RPC_RequestGrab(RpcInfo info = default)
         {
+            Debug.Log($"[Extinguisher][RPC_RequestGrab] receiverLocal={Runner.LocalPlayer} source={info.Source} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
             SetGrabbed(info.Source);
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
         private void RPC_RequestRelease(RpcInfo info = default)
         {
+            Debug.Log($"[Extinguisher][RPC_RequestRelease] receiverLocal={Runner.LocalPlayer} source={info.Source} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
             SetReleased(info.Source);
         }
 
@@ -287,6 +305,12 @@ namespace FireLink119.Extinguisher
             Quaternion rayOriginRotation,
             RpcInfo info = default)
         {
+            if (Time.time >= _nextPoseReceiveDebugTime)
+            {
+                _nextPoseReceiveDebugTime = Time.time + 0.5f;
+                Debug.Log($"[Extinguisher][RecvPose] receiverLocal={Runner.LocalPlayer} source={info.Source} held={IsHeld} heldBy={HeldBy} accepted={IsHeld && HeldBy == info.Source} pos={position} rayPos={rayOriginPosition}");
+            }
+
             if (!IsHeld || HeldBy != info.Source)
             {
                 return;
@@ -301,19 +325,27 @@ namespace FireLink119.Extinguisher
 
         private void SetGrabbed(PlayerRef player)
         {
+            Debug.Log($"[Extinguisher][SetGrabbed] player={player} beforeHeld={IsHeld} beforeHeldBy={HeldBy}");
+
             if (IsHeld && HeldBy != player)
             {
+                Debug.Log($"[Extinguisher][SetGrabbed] rejected player={player} currentHeldBy={HeldBy}");
                 return;
             }
 
             IsHeld = true;
             HeldBy = player;
+
+            Debug.Log($"[Extinguisher][SetGrabbed] afterHeld={IsHeld} afterHeldBy={HeldBy}");
         }
 
         private void SetReleased(PlayerRef player)
         {
+            Debug.Log($"[Extinguisher][SetReleased] player={player} beforeHeld={IsHeld} beforeHeldBy={HeldBy}");
+
             if (!IsHeld || HeldBy != player)
             {
+                Debug.Log($"[Extinguisher][SetReleased] rejected player={player} currentHeld={IsHeld} currentHeldBy={HeldBy}");
                 return;
             }
 
@@ -326,6 +358,8 @@ namespace FireLink119.Extinguisher
             Transform rayOrigin = GetRayOrigin();
             NetworkedRayOriginPosition = rayOrigin.position;
             NetworkedRayOriginRotation = rayOrigin.rotation;
+
+            Debug.Log($"[Extinguisher][SetReleased] afterHeld={IsHeld} afterHeldBy={HeldBy} pos={NetworkedPosition}");
         }
 
         private void SetSafetyPinPulled(PlayerRef player)
@@ -463,6 +497,11 @@ namespace FireLink119.Extinguisher
         private bool IsHeldByOtherPlayer()
         {
             return IsHeld && HeldBy != Runner.LocalPlayer;
+        }
+
+        private string GetLocalPlayerDebug()
+        {
+            return Runner != null ? Runner.LocalPlayer.ToString() : "NoRunner";
         }
 
         private void OnDrawGizmosSelected()

@@ -17,7 +17,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &563568411351893999
 Transform:
   m_ObjectHideFlags: 0
@@ -44,8 +44,8 @@ Light:
   serializedVersion: 12
   m_Type: 2
   m_Color: {r: 0.99607843, g: 0.6039216, b: 0.3764706, a: 1}
-  m_Intensity: 14.593494
-  m_Range: 8.562605
+  m_Intensity: 17.140583
+  m_Range: 8.857961
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 10, y: 10}
@@ -9658,6 +9658,7 @@ GameObject:
   - component: {fileID: 7091838969214471079}
   - component: {fileID: 2248263024600412006}
   - component: {fileID: 5990565638101293122}
+  - component: {fileID: 859678045695813120}
   m_Layer: 6
   m_Name: Fire1
   m_TagString: Untagged
@@ -14631,7 +14632,8 @@ MonoBehaviour:
   _fireParticles: []
   _extinguishDuration: 4
   _extinguishStageCount: 4
-  _disableWhenExtinguished: 1
+  _disableCollidersWhenExtinguished: 1
+  _fireColliders: []
 --- !u!135 &2248263024600412006
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -14668,7 +14670,7 @@ AudioSource:
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
@@ -14750,3 +14752,22 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &859678045695813120
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6294508013172393196}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
+  SortKey: 3387163929
+  ObjectInterest: 1
+  Flags: 262145
+  NestedObjects: []
+  NetworkedBehaviours:
+  - {fileID: 7091838969214471079}
+  ForceRemoteRenderTimeframe: 0

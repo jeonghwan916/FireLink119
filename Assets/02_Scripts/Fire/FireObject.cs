@@ -1,9 +1,10 @@
 using System;
+using Fusion;
 using UnityEngine;
 
 namespace FireLink119.Fire
 {
-    public class FireObject : MonoBehaviour
+    public class FireObject : NetworkBehaviour
     {
         private struct ParticleInitialState
         {
@@ -19,35 +20,48 @@ namespace FireLink119.Fire
         [Header("Extinguish : Stages")]
         [SerializeField] private float _extinguishDuration = 4f;
         [SerializeField] private int _extinguishStageCount = 4;
-        [SerializeField] private bool _disableWhenExtinguished = true;
+        [SerializeField] private bool _disableCollidersWhenExtinguished = true;
+        [SerializeField] private Collider[] _fireColliders;
+
+        [Networked] private float ExtinguishProgress { get; set; }
+        [Networked] private int CurrentStage { get; set; }
+        [Networked] private NetworkBool IsExtinguished { get; set; }
+
+        public event Action OnExtinguished;
 
         private ParticleInitialState[] _particleInitialStates;
-        private float _accumulatedExtinguishTime;
-        private int _currentStage;
-        private bool _isExtinguished;
-        
-        // 불이 꺼졌을때의 후속 동작이 필요하다면 여기 이벤트 구독하면 됨
-        public event Action OnExtinguished;
-        
-        // 기존 필드들 아래에 추가
         private AudioSource _audioSource;
         private float _initialVolume;
+        private int _lastRenderedStage = -1;
+        private bool _lastRenderedExtinguished;
 
         private void Awake()
         {
             _audioSource = GetComponent<AudioSource>();
             if (_audioSource != null)
+            {
                 _initialVolume = _audioSource.volume;
+            }
 
             if (_fireParticles == null || _fireParticles.Length == 0)
+            {
                 _fireParticles = GetComponentsInChildren<ParticleSystem>();
+            }
+
+            if (_fireColliders == null || _fireColliders.Length == 0)
+            {
+                _fireColliders = GetComponentsInChildren<Collider>();
+            }
 
             _particleInitialStates = new ParticleInitialState[_fireParticles.Length];
 
             for (int i = 0; i < _fireParticles.Length; i++)
             {
                 ParticleSystem ps = _fireParticles[i];
-                if (ps == null) continue;
+                if (ps == null)
+                {
+                    continue;
+                }
 
                 var emission = ps.emission;
                 var main = ps.main;
@@ -62,29 +76,70 @@ namespace FireLink119.Fire
             }
         }
 
+        public override void Spawned()
+        {
+            if (HasStateAuthority)
+            {
+                ExtinguishProgress = 0f;
+                CurrentStage = 0;
+                IsExtinguished = false;
+            }
+
+            ApplyNetworkState(force: true);
+        }
+
+        public override void Render()
+        {
+            ApplyNetworkState(force: false);
+        }
+
         public void TakeExtinguish(float deltaTime)
         {
-            if (_isExtinguished || deltaTime <= 0f) return;
+            if (!HasStateAuthority || IsExtinguished || deltaTime <= 0f)
+            {
+                return;
+            }
 
-            _accumulatedExtinguishTime += deltaTime;
+            ExtinguishProgress += deltaTime;
 
             float duration = Mathf.Max(_extinguishDuration, 0.01f);
             int stageCount = Mathf.Max(_extinguishStageCount, 1);
             float secondsPerStage = duration / stageCount;
 
-            int nextStage = Mathf.FloorToInt(_accumulatedExtinguishTime / secondsPerStage);
+            int nextStage = Mathf.FloorToInt(ExtinguishProgress / secondsPerStage);
             nextStage = Mathf.Clamp(nextStage, 0, stageCount);
 
-            if (nextStage == _currentStage) return;
+            if (nextStage != CurrentStage)
+            {
+                CurrentStage = nextStage;
+            }
 
-            _currentStage = nextStage;
+            if (CurrentStage >= stageCount)
+            {
+                IsExtinguished = true;
+            }
+        }
 
-            float intensity = 1f - ((float)_currentStage / stageCount);
+        private void ApplyNetworkState(bool force)
+        {
+            if (!force &&
+                _lastRenderedStage == CurrentStage &&
+                _lastRenderedExtinguished == IsExtinguished)
+            {
+                return;
+            }
+
+            _lastRenderedStage = CurrentStage;
+            _lastRenderedExtinguished = IsExtinguished;
+
+            int stageCount = Mathf.Max(_extinguishStageCount, 1);
+            float intensity = IsExtinguished ? 0f : 1f - ((float)CurrentStage / stageCount);
             ApplyIntensity(intensity);
 
-            if (_currentStage >= stageCount)
+            if (IsExtinguished)
             {
-                Extinguish();
+                ApplyExtinguishedVisuals();
+                OnExtinguished?.Invoke();
             }
         }
 
@@ -92,7 +147,10 @@ namespace FireLink119.Fire
         {
             foreach (ParticleInitialState state in _particleInitialStates)
             {
-                if (state.Particle == null) continue;
+                if (state.Particle == null)
+                {
+                    continue;
+                }
 
                 var emission = state.Particle.emission;
                 emission.rateOverTime = ScaleCurve(state.RateOverTime, intensity);
@@ -108,6 +166,35 @@ namespace FireLink119.Fire
             }
         }
 
+        private void ApplyExtinguishedVisuals()
+        {
+            foreach (ParticleSystem ps in _fireParticles)
+            {
+                if (ps == null)
+                {
+                    continue;
+                }
+
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+            }
+
+            if (_audioSource != null)
+            {
+                _audioSource.volume = 0f;
+            }
+
+            if (_disableCollidersWhenExtinguished)
+            {
+                foreach (Collider fireCollider in _fireColliders)
+                {
+                    if (fireCollider != null)
+                    {
+                        fireCollider.enabled = false;
+                    }
+                }
+            }
+        }
+
         private ParticleSystem.MinMaxCurve ScaleCurve(ParticleSystem.MinMaxCurve curve, float scale)
         {
             switch (curve.mode)
@@ -115,12 +202,10 @@ namespace FireLink119.Fire
                 case ParticleSystemCurveMode.Constant:
                     curve.constant *= scale;
                     break;
-
                 case ParticleSystemCurveMode.TwoConstants:
                     curve.constantMin *= scale;
                     curve.constantMax *= scale;
                     break;
-
                 case ParticleSystemCurveMode.Curve:
                 case ParticleSystemCurveMode.TwoCurves:
                     curve.curveMultiplier *= scale;
@@ -129,50 +214,5 @@ namespace FireLink119.Fire
 
             return curve;
         }
-
-        private void Extinguish()
-        {
-            _isExtinguished = true;
-
-            OnExtinguished?.Invoke();
-
-            foreach (ParticleSystem ps in _fireParticles)
-            {
-                if (ps == null) continue;
-                ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-            }
-
-            if (_audioSource != null)
-                _audioSource.volume = 0f;
-
-            if (_disableWhenExtinguished)
-            {
-                gameObject.SetActive(false);
-            }
-        }
-
-        #region 플레이어 불 진입 (피해 피드백)
-        // todo : 나중에 플레이어 UI 관련 요소 생기면 여기서 피드백 연결
-        private void OnTriggerEnter(Collider other)
-        {
-            if (other.CompareTag("Player"))
-            {
-                Debug.Log("=====Player Enter=====");
-                // 어기에서 데미지 코루틴
-                // other.transform.GetComponent<PlayerUI>().ChangeScreenVignette(true);
-                // other.transform.GetComponent<PlayerUI>().PlayDamageSFX(true);
-            }
-        }
-
-        private void OnTriggerExit(Collider other)
-        {
-            if (other.CompareTag("Player"))
-            {
-                Debug.Log("=====Player Exit=====");
-                // other.transform.GetComponent<PlayerUI>().ChangeScreenVignette(false);
-                // other.transform.GetComponent<PlayerUI>().PlayDamageSFX(false);
-            }
-        }
-        #endregion
     }
 }

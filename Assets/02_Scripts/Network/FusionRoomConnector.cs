@@ -18,7 +18,7 @@ namespace FireLink119.Network
 
         public async void StartRoom(LobbyRoomRole role, string roomCode)
         {
-            // Fusion 방 생성/입장은 비동기라서, 같은 입력이 연타되어 Runner가 중복 생성되는 것을 막는다.
+            // 방 생성/입장은 비동기로 진행되므로 같은 버튼이 연속 선택되어 Runner가 중복 생성되는 것을 막는다.
             if (_isStarting)
             {
                 return;
@@ -46,13 +46,14 @@ namespace FireLink119.Network
             _runner = runnerObject.AddComponent<NetworkRunner>();
             _runner.ProvideInput = true;
 
+            // Runner와 같은 오브젝트에 네트워크 입력 수집과 아바타 스폰 콜백을 붙여 Fusion 생명주기와 함께 관리한다.
             runnerObject.AddComponent<NetworkAvatarInputProvider>();
             NetworkAvatarSpawner avatarSpawner = runnerObject.AddComponent<NetworkAvatarSpawner>();
             avatarSpawner.Initialize(_playerAvatarPrefab, _playerSpawnOrigin, _playerSpawnSpacing);
 
             NetworkSceneManagerDefault sceneManager = runnerObject.AddComponent<NetworkSceneManagerDefault>();
 
-            // OneShot 예제와 같은 StartGame 진입 구조를 쓰고, 로비에서 입력한 4자리 코드를 SessionName으로 사용한다.
+            // 로비에서 입력한 4자리 코드를 Fusion SessionName으로 사용해 Host/Client가 같은 방을 찾도록 한다.
             StartGameResult result = await _runner.StartGame(new StartGameArgs
             {
                 GameMode = gameMode,
@@ -79,7 +80,7 @@ namespace FireLink119.Network
 
         private bool IsValidRoomCode(string roomCode)
         {
-            // Photon SessionName으로 넘기기 전에 로비 규칙을 한 번 더 검증해서 잘못된 방 생성을 막는다.
+            // SessionName으로 전달하기 전에 로비 규칙을 한 번 더 검증해 잘못된 방 생성/입장을 차단한다.
             if (string.IsNullOrWhiteSpace(roomCode) || roomCode.Length != 4)
             {
                 return false;
@@ -98,7 +99,7 @@ namespace FireLink119.Network
 
         private int GetBuildIndexBySceneName(string sceneName)
         {
-            // Fusion scene loading에는 SceneRef가 필요하지만, Inspector에서는 씬 이름이 관리하기 쉬워서 실행 시 변환한다.
+            // Inspector에서는 씬 이름으로 관리하고, Fusion StartGame에는 Build Settings 인덱스 기반 SceneRef를 넘긴다.
             for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
             {
                 string scenePath = SceneUtility.GetScenePathByBuildIndex(i);

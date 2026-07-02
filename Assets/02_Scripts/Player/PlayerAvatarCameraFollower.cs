@@ -17,16 +17,17 @@ namespace FireLink119.Player
 
         private void Awake()
         {
+            // XR Origin 안에서 사용할 때는 보통 이 스크립트가 붙은 아바타 루트를 직접 움직인다.
             if (_visualRoot == null)
             {
                 _visualRoot = transform;
             }
 
+            // 씬마다 Main Camera 참조를 다시 연결하지 않아도 기본 XR 카메라를 따라가게 한다.
             if (_cameraTransform == null && Camera.main != null)
             {
                 _cameraTransform = Camera.main.transform;
             }
-
         }
 
         private void Start()
@@ -36,6 +37,7 @@ namespace FireLink119.Player
 
         private void LateUpdate()
         {
+            // XR 카메라는 프레임 중 추적값으로 갱신되므로, LateUpdate에서 따라가야 HMD 위치와 아바타 위치 차이가 덜 흔들린다.
             if (!CanFollowCamera())
             {
                 return;
@@ -50,7 +52,6 @@ namespace FireLink119.Player
                 targetPosition.y = _initialVisualRootY;
             }
 
-            // XR camera movement is updated before LateUpdate, so following here keeps the avatar from drifting into the HMD view.
             _visualRoot.position = targetPosition;
 
             if (_followCameraYaw)
@@ -77,6 +78,7 @@ namespace FireLink119.Player
 
         private void CaptureInitialHeight()
         {
+            // 높이를 고정하면 현실에서 머리를 숙이거나 들 때 몸 전체가 위아래로 출렁이는 것을 막을 수 있다.
             if (_hasInitialVisualRootY || _visualRoot == null)
             {
                 return;

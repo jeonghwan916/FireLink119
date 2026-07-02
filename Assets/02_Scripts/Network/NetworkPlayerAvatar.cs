@@ -1,5 +1,5 @@
-using Fusion;
 using FireLink119.Player;
+using Fusion;
 using UnityEngine;
 
 namespace FireLink119.Network
@@ -35,6 +35,7 @@ namespace FireLink119.Network
 
         private void Awake()
         {
+            // 프리팹 세팅 누락 시에도 런타임에서 최소 참조를 복구해 테스트 중 null 예외를 줄인다.
             if (_avatarRoot == null)
             {
                 _avatarRoot = transform;
@@ -57,7 +58,7 @@ namespace FireLink119.Network
 
             if (_handTargets == null)
             {
-                // Network avatars only need named IK targets inside the prefab; the helper resolves them at runtime.
+                // NetworkPlayerAvatar 프리팹 안에 이름이 맞는 Target이 있으면 helper가 런타임에 찾아 적용한다.
                 _handTargets = gameObject.AddComponent<PlayerAvatarHandTargets>();
             }
 
@@ -66,6 +67,7 @@ namespace FireLink119.Network
 
         public override void Spawned()
         {
+            // 네트워크 스폰 직후 초기 위치를 기록해 첫 렌더 프레임에서 원점에 잠깐 보이는 현상을 줄인다.
             CacheAnimatorParameters();
 
             if (HasStateAuthority)
@@ -79,6 +81,7 @@ namespace FireLink119.Network
 
         public override void FixedUpdateNetwork()
         {
+            // StateAuthority만 입력을 읽어 Networked 상태를 갱신한다. 다른 클라이언트는 복제된 값을 Render에서 적용한다.
             if (!HasStateAuthority)
             {
                 return;
@@ -102,6 +105,7 @@ namespace FireLink119.Network
 
         public override void Render()
         {
+            // Fusion 보간 렌더 단계에서 아바타 루트, 손 IK Target, Animator 값을 모두 반영한다.
             ApplyNetworkPose();
             ApplyHandTargets();
             ApplyAnimatorParameters();
@@ -119,6 +123,7 @@ namespace FireLink119.Network
 
         private void ApplyHandTargets()
         {
+            // 손 Target을 움직이면 프리팹의 Rig_Arms/Two Bone IK가 실제 팔 본을 계산한다.
             if (_handTargets == null)
             {
                 return;
@@ -161,6 +166,7 @@ namespace FireLink119.Network
 
         private void ApplyInputAuthorityVisibility()
         {
+            // 자신의 실제 1인칭 몸은 XR Origin 안의 로컬 아바타가 담당하므로, 네트워크 프리팹의 자기 복제본은 숨긴다.
             if (!_hideForInputAuthority || !HasInputAuthority)
             {
                 return;
@@ -175,6 +181,7 @@ namespace FireLink119.Network
 
         private void CacheAnimatorParameters()
         {
+            // Animator Controller가 바뀌어도 없는 파라미터를 Set하지 않도록 미리 존재 여부를 캐시한다.
             if (_animator == null || _animator.runtimeAnimatorController == null)
             {
                 return;

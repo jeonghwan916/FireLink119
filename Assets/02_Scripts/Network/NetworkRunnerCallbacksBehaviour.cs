@@ -8,6 +8,9 @@ namespace FireLink119.Network
 {
     public abstract class NetworkRunnerCallbacksBehaviour : MonoBehaviour, INetworkRunnerCallbacks
     {
+        // Fusion의 INetworkRunnerCallbacks는 메서드 수가 많다.
+        // 필요한 콜백만 상속 클래스에서 override할 수 있도록 기본 빈 구현을 제공한다.
+
         public virtual void OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player)
         {
         }

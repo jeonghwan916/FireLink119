@@ -37,6 +37,7 @@ namespace FireLink119.Player
 
         private void Awake()
         {
+            // 프리팹에서 참조를 직접 연결하지 않아도 기본 아바타 구조에서는 자식 Animator를 찾아 사용한다.
             if (_animator == null)
             {
                 _animator = GetComponentInChildren<Animator>();
@@ -52,11 +53,11 @@ namespace FireLink119.Player
 
         private void OnEnable()
         {
+            // XRI Input Action Manager가 이미 Action을 켜는 경우가 있으므로, 이 스크립트가 켠 Action만 나중에 끄도록 기록한다.
             ResolveMoveAction();
             ResolveSprintAction();
             CacheAnimatorParameters();
 
-            // XRI Input Action Manager may already control action lifetime, so only disable actions this script enabled.
             if (_moveAction != null && !_moveAction.enabled)
             {
                 _moveAction.Enable();
@@ -72,6 +73,7 @@ namespace FireLink119.Player
 
         private void OnDisable()
         {
+            // 다른 XR 시스템이 공유하는 Action을 실수로 끄지 않도록, 이 컴포넌트가 Enable한 경우만 Disable한다.
             if (_moveAction != null && _enabledMoveActionHere)
             {
                 _moveAction.Disable();
@@ -88,6 +90,7 @@ namespace FireLink119.Player
 
         private void Update()
         {
+            // 로컬 플레이어의 이동 입력을 Animator 파라미터로 바꾸고, 네트워크 입력 제공자가 읽을 최신 상태도 저장한다.
             if (!CanUpdateAnimation())
             {
                 return;
@@ -109,16 +112,19 @@ namespace FireLink119.Player
 
         private void ResolveMoveAction()
         {
+            // Inspector의 InputActionReference에서 실제 런타임 Action을 꺼낸다.
             _moveAction = _moveActionReference != null ? _moveActionReference.action : null;
         }
 
         private void ResolveSprintAction()
         {
+            // 스프린트는 선택 기능이므로 참조가 비어 있어도 이동 애니메이션은 계속 동작한다.
             _sprintAction = _sprintActionReference != null ? _sprintActionReference.action : null;
         }
 
         private bool CanUpdateAnimation()
         {
+            // 필수 참조가 없을 때 매 프레임 같은 로그가 쌓이지 않도록 최초 1회만 경고한다.
             if (_animator == null)
             {
                 if (!_warnedMissingAnimator)
@@ -146,6 +152,7 @@ namespace FireLink119.Player
 
         private Vector2 GetLocalMoveBlend(Vector2 moveInput, float normalizedMoveAmount)
         {
+            // Blend Tree는 아바타 로컬 X/Z 기준으로 구성되어 있으므로, 카메라 기준 입력을 아바타 기준 방향으로 변환한다.
             if (_movementReference == null)
             {
                 Vector2 rawBlend = moveInput.sqrMagnitude > 1f ? moveInput.normalized : moveInput;
@@ -170,12 +177,13 @@ namespace FireLink119.Player
                 localBlend.Normalize();
             }
 
-            // Match the OneShot Blend Tree convention: local X/Z movement drives MoveX/MoveY.
+            // OneShot에서 맞춘 Blend Tree 규칙을 유지한다. local X/Z 이동값이 MoveX/MoveY 파라미터를 구동한다.
             return localBlend * normalizedMoveAmount;
         }
 
         private void ApplyAnimatorParameters(Vector2 moveBlend, bool isMoving, bool isSprinting)
         {
+            // Animator Controller가 아직 다른 버전이어도 없는 파라미터를 건드리지 않아 런타임 오류를 피한다.
             if (_hasIsMovingParameter)
             {
                 _animator.SetBool(_isMovingParameter, isMoving);
@@ -199,6 +207,7 @@ namespace FireLink119.Player
 
         private void CacheAnimatorParameters()
         {
+            // 파라미터 존재 여부를 미리 캐시해 Update마다 문자열 기반 검색을 반복하지 않게 한다.
             if (_animator == null || _animator.runtimeAnimatorController == null)
             {
                 return;
@@ -212,6 +221,7 @@ namespace FireLink119.Player
 
         private bool HasAnimatorParameter(string parameterName, AnimatorControllerParameterType parameterType)
         {
+            // 같은 이름이어도 타입이 다르면 SetBool/SetFloat 호출이 실패하므로 이름과 타입을 함께 확인한다.
             if (string.IsNullOrWhiteSpace(parameterName))
             {
                 return false;

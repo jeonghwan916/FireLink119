@@ -28,6 +28,8 @@ namespace FireLink119.Player
             out Vector3 rightHandPosition,
             out Quaternion rightHandRotation)
         {
+            // 네트워크에는 월드 좌표 대신 아바타 기준 로컬 좌표를 보낸다.
+            // 이렇게 해야 방 안 위치가 다른 상대 아바타도 같은 팔 자세를 자기 몸 기준으로 재현한다.
             ResolveMissingReferences();
 
             if (_avatarRoot == null || _leftHandTarget == null || _rightHandTarget == null)
@@ -52,6 +54,7 @@ namespace FireLink119.Player
             Vector3 rightHandPosition,
             Quaternion rightHandRotation)
         {
+            // 수신한 로컬 좌표를 현재 네트워크 아바타 루트 기준 월드 좌표로 되돌려 IK Target에 적용한다.
             ResolveMissingReferences();
 
             if (_avatarRoot == null || _leftHandTarget == null || _rightHandTarget == null)
@@ -70,6 +73,7 @@ namespace FireLink119.Player
 
         private void ResolveMissingReferences()
         {
+            // Inspector 직접 연결을 우선하되, 테스트 중에는 이름만 맞아도 자동으로 찾게 해서 프리팹 세팅 부담을 줄인다.
             if (_avatarRoot == null)
             {
                 _avatarRoot = transform;
@@ -88,6 +92,7 @@ namespace FireLink119.Player
 
         private Transform FindRelatedTransform(string targetName)
         {
+            // 로컬 네트워크 프리팹은 자기 자식에서 찾고, XR Origin 안 로컬 아바타는 루트 전체에서 컨트롤러 자식 Target까지 찾는다.
             Transform localChild = FindChildRecursive(transform, targetName);
 
             if (localChild != null)

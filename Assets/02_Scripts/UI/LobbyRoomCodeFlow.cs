@@ -26,24 +26,24 @@ namespace FireLink119.UI
 
         private void Awake()
         {
+            // 넘패드는 로비 시작 시 숨긴 상태로 두고, Host/Client 버튼을 선택했을 때만 해당 패드를 활성화한다.
             _hostRoomCodePad = FindRoomCodePad(_hostRoomCodePadName, LobbyRoomRole.Host);
             _clientRoomCodePad = FindRoomCodePad(_clientRoomCodePadName, LobbyRoomRole.Client);
             _connector = ResolveConnector();
 
-            // 로비는 역할 선택 화면에서 시작하므로, 선택 전에는 두 넘패드를 모두 숨긴 상태로 맞춘다.
             SetPadActive(_hostRoomCodePad, false);
             SetPadActive(_clientRoomCodePad, false);
         }
 
         private void OnDisable()
         {
-            // 씬 전환이나 오브젝트 비활성 시 이전 넘패드 이벤트가 남아 다음 선택에 섞이지 않게 정리한다.
+            // 씬 전환 또는 비활성화 시 입력 필드/키보드 이벤트가 남아 다음 선택에서 중복 호출되지 않게 정리한다.
             ClearActivePadBindings();
         }
 
         public void ShowRoomCodePad(LobbyRoomRole role)
         {
-            // Host/Client 버튼에서 전달된 역할에 맞는 숨겨진 넘패드만 켜고 입력 이벤트를 연결한다.
+            // 선택한 역할에 맞는 패드만 열고, 반대쪽 패드는 반드시 닫아 로비에서 한 번에 하나의 입력 흐름만 유지한다.
             GameObject targetPad = role == LobbyRoomRole.Host ? _hostRoomCodePad : _clientRoomCodePad;
             if (targetPad == null)
             {
@@ -66,7 +66,7 @@ namespace FireLink119.UI
 
         private FusionRoomConnector ResolveConnector()
         {
-            // 네트워크 시작 설정은 Inspector 참조가 필요하므로, 같은 오브젝트에 미리 붙은 컴포넌트만 사용한다.
+            // 실제 네트워크 시작 설정은 같은 오브젝트의 FusionRoomConnector에 모아 둔다.
             FusionRoomConnector connector = GetComponent<FusionRoomConnector>();
             if (connector == null)
             {
@@ -78,7 +78,7 @@ namespace FireLink119.UI
 
         private void ConfigureActivePad()
         {
-            // 활성화된 넘패드 내부의 TMP 입력 필드와 XR Keyboard 이벤트를 현재 역할 흐름에 맞게 연결한다.
+            // XRI Spatial Keyboard 예시 프리팹은 Display와 Keyboard가 분리되어 있어, 활성화된 패드 기준으로 다시 연결한다.
             _activeInputField = _activeRoomCodePad.GetComponentInChildren<TMP_InputField>(true);
             if (_activeInputField == null)
             {
@@ -96,7 +96,7 @@ namespace FireLink119.UI
             _activeKeyboard = ResolveKeyboard(_activeRoomCodePad, _activeKeyboardDisplay);
             if (_activeKeyboardDisplay != null)
             {
-                // 샘플 키보드의 입력/제출 동작은 유지하고, 여기서는 입력 제한과 네트워크 전달만 추가한다.
+                // 샘플 키보드의 입력/표시 동작은 유지하고, 여기서는 4자리 제한과 제출 처리만 추가한다.
                 _activeKeyboardDisplay.inputField = _activeInputField;
                 if (_activeKeyboard != null)
                 {
@@ -125,7 +125,7 @@ namespace FireLink119.UI
 
         private void ClearActivePadBindings()
         {
-            // 역할을 다시 선택할 때 이전 패드의 이벤트가 중복 호출되지 않도록 현재 연결만 해제한다.
+            // 이전 패드의 이벤트가 살아 있으면 제출/백스페이스 처리가 여러 번 실행되므로 현재 연결만 명시적으로 해제한다.
             if (_activeInputField != null)
             {
                 _activeInputField.onValueChanged.RemoveListener(OnRoomCodeChanged);
@@ -150,7 +150,7 @@ namespace FireLink119.UI
 
         private void OnRoomCodeChanged(string value)
         {
-            // XR 키보드 설정이 누락되거나 붙여넣기가 들어와도 4자리 숫자 규칙을 코드에서 다시 보장한다.
+            // 붙여넣기나 키보드 설정 차이로 숫자가 아닌 값이 들어와도 최종 방 코드는 4자리 숫자로만 유지한다.
             if (_isSanitizingInput)
             {
                 return;
@@ -172,7 +172,7 @@ namespace FireLink119.UI
 
         private void OnRoomCodeSubmitted(string submittedCode)
         {
-            // Enter 버튼은 최종 확정 액션이므로, 4자리 입력이 완성된 경우에만 Fusion 접속으로 넘긴다.
+            // Enter는 방 생성/입장 확정 액션이므로, 정확히 4자리 숫자가 완성된 경우에만 Fusion 연결로 넘긴다.
             if (!_hasActiveRole)
             {
                 return;
@@ -196,7 +196,7 @@ namespace FireLink119.UI
 
         private void OnKeyboardKeyPressed(KeyboardKeyEventArgs args)
         {
-            // 백스페이스는 입력 취소 UX에도 쓰기 때문에, 일반 숫자 키와 분리해서 처리한다.
+            // 백스페이스는 숫자 삭제와 입력 취소 UX를 함께 담당하므로 일반 숫자 키와 분리해서 처리한다.
             if (args == null || !IsBackspaceKey(args.key))
             {
                 return;
@@ -207,13 +207,12 @@ namespace FireLink119.UI
 
         private void HandleBackspaceAfterKeyPress()
         {
-            // 마지막 숫자를 지운 직후에는 닫지 않고, 이미 빈 상태에서 한 번 더 누른 경우에만 역할 선택으로 돌아간다.
+            // 마지막 숫자를 지운 직후에는 패드를 유지하고, 이미 빈 상태에서 한 번 더 누르면 역할 선택 상태로 돌아간다.
             if (_activeInputField == null || !string.IsNullOrEmpty(_activeInputField.text))
             {
                 return;
             }
 
-            // If the last press only deleted the final digit, keep the pad open; the next empty backspace cancels selection.
             if (_codeLengthBeforeLastChange > 0)
             {
                 _codeLengthBeforeLastChange = 0;
@@ -226,7 +225,7 @@ namespace FireLink119.UI
 
         private void HideActivePad()
         {
-            // 입력 취소 시에는 현재 패드만 끄고 버튼 선택 상태로 돌아가도록 이벤트와 입력값을 함께 정리한다.
+            // 취소 시에는 현재 패드만 닫고 입력 상태를 초기화해 Host/Client 버튼을 다시 선택할 수 있게 한다.
             GameObject padToHide = _activeRoomCodePad;
             if (_activeInputField != null)
             {
@@ -239,7 +238,7 @@ namespace FireLink119.UI
 
         private XRKeyboard ResolveKeyboard(GameObject roomCodePad, XRKeyboardDisplay keyboardDisplay)
         {
-            // 커스텀 패드가 샘플 프리팹 구조와 달라도, Display 참조와 자식/부모 Keyboard를 순서대로 찾아 연결한다.
+            // 커스텀한 넘패드 구조가 샘플 프리팹과 조금 달라도 Display, 자식, 부모 순으로 Keyboard를 찾아 연결한다.
             if (keyboardDisplay != null && keyboardDisplay.keyboard != null)
             {
                 return keyboardDisplay.keyboard;
@@ -268,7 +267,7 @@ namespace FireLink119.UI
 
         private GameObject FindRoomCodePad(string configuredName, LobbyRoomRole role)
         {
-            // 비활성 오브젝트는 GameObject.Find로 찾을 수 없어서, 이름 우선 후 역할 기반 fallback을 둔다.
+            // 비활성 오브젝트는 GameObject.Find로 찾을 수 없으므로 Resources 검색 기반 fallback을 사용한다.
             GameObject exactMatch = FindSceneObjectByName(configuredName);
             if (exactMatch != null)
             {
@@ -280,7 +279,7 @@ namespace FireLink119.UI
 
         private GameObject FindSceneObjectByName(string objectName)
         {
-            // Resources.FindObjectsOfTypeAll을 사용해 현재 씬의 비활성 넘패드까지 검색한다.
+            // 로비 시작 시 Host/Client 패드는 비활성 상태일 수 있으므로, 현재 씬에 속한 Transform 전체를 검색한다.
             if (string.IsNullOrWhiteSpace(objectName))
             {
                 return null;
@@ -306,7 +305,7 @@ namespace FireLink119.UI
 
         private GameObject FindSceneObjectByRole(LobbyRoomRole role)
         {
-            // Inspector 이름이 조금 달라도 Host/Client와 Num이 포함된 오브젝트를 찾아 기본 동작을 살린다.
+            // Inspector 이름이 조금 달라도 Host/Client와 Num 단어가 포함된 패드를 찾아 기본 동작을 유지한다.
             string roleName = role == LobbyRoomRole.Host ? "Host" : "Client";
             Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
 
@@ -333,7 +332,7 @@ namespace FireLink119.UI
 
         private string SanitizeRoomCode(string value)
         {
-            // 입력값은 Photon 방 이름으로 쓰이므로 숫자만 남기고 최대 자리수에서 잘라낸다.
+            // 방 코드는 Photon SessionName으로 쓰이므로 숫자만 남기고 최대 자리 수를 넘지 않게 제한한다.
             if (string.IsNullOrEmpty(value))
             {
                 return string.Empty;
@@ -359,7 +358,7 @@ namespace FireLink119.UI
 
         private bool IsBackspaceKey(XRKeyboardKey key)
         {
-            // 샘플 프리팹마다 Backspace를 KeyCode 또는 문자로 표현할 수 있어 두 경우를 모두 허용한다.
+            // XRI 샘플 키보드 버전에 따라 Backspace 표현이 다를 수 있어 KeyCode와 문자 값을 모두 허용한다.
             if (key == null)
             {
                 return false;
@@ -370,7 +369,7 @@ namespace FireLink119.UI
 
         private void SetPadActive(GameObject pad, bool isActive)
         {
-            // null 방어를 한 곳에 모아 패드가 아직 없을 때도 선택 버튼 흐름이 끊기지 않게 한다.
+            // 패드가 아직 없거나 이름이 다른 상황에서도 로비 버튼 흐름이 null 예외로 멈추지 않게 한다.
             if (pad != null)
             {
                 pad.SetActive(isActive);

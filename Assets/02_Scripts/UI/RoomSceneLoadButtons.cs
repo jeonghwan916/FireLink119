@@ -9,7 +9,7 @@ namespace FireLink119.UI
     [RequireComponent(typeof(FusionRoomConnector))]
     public class RoomSceneLoadButtons : MonoBehaviour
     {
-        // 현재 로비 버튼은 샘플 오브젝트를 복사해 쓰는 구조라서, 프리팹 연결을 건드리지 않도록 이름으로 찾는다.
+        // 기존 Push 버튼 프리팹을 복사한 구조라 Inspector 직접 참조 대신 이름으로 찾아 기존 UI 연결을 덜 건드린다.
         [SerializeField] private string _hostButtonName = "Host Button";
         [SerializeField] private string _clientButtonName = "Client Button";
 
@@ -22,7 +22,7 @@ namespace FireLink119.UI
             _hostButton = FindButton(_hostButtonName);
             _clientButton = FindButton(_clientButtonName);
 
-            // 이 스크립트는 선택 버튼만 담당하므로, 코드 입력 흐름은 별도 컴포넌트에 위임한다.
+            // 이 스크립트는 선택 이벤트만 담당하고, 코드 입력/방 시작 흐름은 LobbyRoomCodeFlow에 분리한다.
             _roomCodeFlow = GetComponent<LobbyRoomCodeFlow>();
             if (_roomCodeFlow == null)
             {
@@ -32,7 +32,7 @@ namespace FireLink119.UI
 
         private void OnEnable()
         {
-            // XR 버튼은 Unity UI Button.onClick이 아니라 selectEntered로 선택 입력을 받는다.
+            // XR 버튼은 일반 Unity UI Button.onClick이 아니라 XRI selectEntered 이벤트로 선택 입력을 받는다.
             if (_hostButton != null)
             {
                 _hostButton.selectEntered.AddListener(OnHostButtonSelected);
@@ -46,7 +46,7 @@ namespace FireLink119.UI
 
         private void OnDisable()
         {
-            // 로비 오브젝트가 꺼졌다 켜질 때 같은 이벤트가 중복 등록되지 않도록 해제한다.
+            // 씬 전환이나 오브젝트 비활성화 후 다시 켜질 때 같은 이벤트가 중복 등록되지 않도록 해제한다.
             if (_hostButton != null)
             {
                 _hostButton.selectEntered.RemoveListener(OnHostButtonSelected);
@@ -60,7 +60,7 @@ namespace FireLink119.UI
 
         private XRSimpleInteractable FindButton(string buttonName)
         {
-            // 버튼 참조가 비어 있어도 현재 씬 구성만 맞으면 동작하도록 이름 기반 자동 연결을 유지한다.
+            // 버튼 참조가 빠져 있어도 현재 로비 계층 구조와 이름이 맞으면 동작하게 하기 위한 자동 연결이다.
             GameObject buttonObject = GameObject.Find(buttonName);
             if (buttonObject == null)
             {
@@ -79,7 +79,7 @@ namespace FireLink119.UI
 
         private void OnHostButtonSelected(SelectEnterEventArgs args)
         {
-            // 호스트 버튼은 바로 네트워크를 시작하지 않고, 먼저 호스트용 코드 입력 패드를 연다.
+            // Host 버튼을 누르면 곧바로 방을 만들지 않고, 먼저 Host용 4자리 코드 입력 패드를 연다.
             if (_roomCodeFlow == null)
             {
                 return;
@@ -90,7 +90,7 @@ namespace FireLink119.UI
 
         private void OnClientButtonSelected(SelectEnterEventArgs args)
         {
-            // 클라이언트도 같은 입력 흐름을 쓰되, 제출 시 Client 모드로 접속하도록 역할만 넘긴다.
+            // Client도 같은 코드 입력 흐름을 사용하되, 제출 시 Client 모드로 방에 입장한다.
             if (_roomCodeFlow == null)
             {
                 return;

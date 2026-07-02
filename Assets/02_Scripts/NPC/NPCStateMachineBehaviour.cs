@@ -6,16 +6,18 @@ namespace FireLink119.NPC
     {
         public override void OnStateExit(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)
         {
-            // Only a naturally completed animation should advance the NPC route.
             if (stateInfo.normalizedTime < 1f)
             {
                 return;
             }
 
-            if (animator.TryGetComponent(out NPCController npcController))
+            NPCController npcController = animator.GetComponentInParent<NPCController>();
+            if (npcController == null)
             {
-                npcController.FinishOpeningDoor();
+                return;
             }
+
+            npcController.NotifyOpeningDoorAnimationFinished();
         }
     }
 }

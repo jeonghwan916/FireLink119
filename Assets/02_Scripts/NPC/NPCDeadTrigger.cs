@@ -1,30 +1,30 @@
-using System;
+using Fusion;
 using UnityEngine;
 
 namespace FireLink119.NPC
 {
-    public class NPCDeadTrigger : MonoBehaviour
+    [RequireComponent(typeof(NetworkObject))]
+    public class NPCDeadTrigger : NetworkBehaviour
     {
-        [SerializeField] private bool _isExplosion = true;
-        private NPCController _npcController;
-        private bool _hasEntered = false;
+        [SerializeField] private NPCDeathType _deathType = NPCDeathType.Explosion;
+
+        [Networked] private NetworkBool HasEntered { get; set; }
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.CompareTag("NPC") && !_hasEntered)
+            if (!HasStateAuthority || HasEntered)
             {
-                _hasEntered = true;
-                _npcController = other.GetComponent<NPCController>();
-            
-                if (_isExplosion)
-                {
-                    _npcController.DieByExplosion();
-                }
-                else
-                {
-                    _npcController.DieBySmoke();
-                }
+                return;
             }
+
+            NPCController npcController = other.GetComponentInParent<NPCController>();
+            if (npcController == null)
+            {
+                return;
+            }
+
+            HasEntered = true;
+            npcController.RequestDie(_deathType);
         }
     }
 }

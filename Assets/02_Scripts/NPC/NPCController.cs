@@ -1,17 +1,26 @@
+using Fusion;
 using UnityEngine;
 using UnityEngine.AI;
 
 namespace FireLink119.NPC
 {
+    public enum NPCDeathType
+    {
+        None = 0,
+        Explosion = 1,
+        Smoke = 2
+    }
+
+    [RequireComponent(typeof(NetworkObject))]
     [RequireComponent(typeof(NavMeshAgent))]
     [RequireComponent(typeof(Animator))]
-    
-    public class NPCController : MonoBehaviour
+    public class NPCController : NetworkBehaviour
     {
-        [Header("Target")]
-        [SerializeField] private Transform _currentTarget;
-        [SerializeField] private Transform _followablePlayer1;
-        [SerializeField] private Transform _followablePlayer2;
+        private const int InvalidTargetId = -1;
+
+        [Header("Network Targets")]
+        [SerializeField] private Transform[] _destinationTargets;
+        [SerializeField] private Transform[] _doorTargets;
 
         [Header("Movement")]
         [SerializeField] private float _walkSpeed = 2f;
@@ -28,17 +37,34 @@ namespace FireLink119.NPC
         [SerializeField] private float _animationDampTime = 0.12f;
         [SerializeField] private float _openDoorCancelTransitionDuration = 0.05f;
 
-        [Header("State")]
-        [SerializeField] private NPCState _state = NPCState.Idle;
-        [SerializeField] private bool _isCrouching;
-
-        [Header("Door")]
-        [SerializeField] private GameObject _currentOpeningDoor;
+        [Header("Initial State")]
+        [SerializeField] private NPCState _initialState = NPCState.Idle;
+        [SerializeField] private bool _initialIsCrouching;
 
         [Header("Calmdown Dialogue")]
         [SerializeField] private AudioClip[] _calmDownClips;
         [SerializeField] private string[] _calmDownTexts;
-     
+
+        [Header("Network Dialogue")]
+        [SerializeField] private AudioClip[] _dialogueClips;
+        [SerializeField] private string[] _dialogueTexts;
+
+        [Networked] public NPCState State { get; private set; }
+        [Networked] public NetworkBool IsDead { get; private set; }
+        [Networked] public NetworkBool IsOpeningDoor { get; private set; }
+        [Networked] public NetworkBool IsCrouching { get; private set; }
+        [Networked] private Vector3 NetworkPosition { get; set; }
+        [Networked] private Quaternion NetworkRotation { get; set; }
+        [Networked] private float NetworkMoveSpeed { get; set; }
+        [Networked] private PlayerRef FollowPlayer { get; set; }
+        [Networked] private NetworkBool HasFollowPlayer { get; set; }
+        [Networked] private int CurrentDoorId { get; set; }
+        [Networked] private int DialogueEventId { get; set; }
+        [Networked] private int DialogueClipIndex { get; set; }
+        [Networked] private NetworkBool IsCalmDownDialogue { get; set; }
+        [Networked] private NPCDeathType DeathType { get; set; }
+        [Networked] private int DeathEventId { get; set; }
+
         private static readonly int SpeedHash = Animator.StringToHash("Speed");
         private static readonly int MotionSpeedHash = Animator.StringToHash("MotionSpeed");
         private static readonly int GroundedHash = Animator.StringToHash("Grounded");
@@ -50,90 +76,327 @@ namespace FireLink119.NPC
 
         private NavMeshAgent _agent;
         private Animator _animator;
-
-        private Vector3 _lastDestination = Vector3.positiveInfinity;
-        private float _nextRepathTime;
-        private float _currentMoveSpeed;
-        private Transform _doorTarget;
-        private Transform _finalDestination;
-        private bool _isOpeningDoor;
-        private bool _isDead;
         private AudioSource _audioSource;
 
+        private Transform _currentTarget;
+        private Transform _finalDestination;
+        private Vector3 _lastDestination = Vector3.positiveInfinity;
+        private float _nextRepathTime;
+        private int _lastHandledDialogueEventId;
+        private int _lastHandledDeathEventId;
+        private bool _hasPlayedOpeningDoorTrigger;
 
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
             _animator = GetComponent<Animator>();
             _audioSource = GetComponent<AudioSource>();
+
+            if (_agent != null)
+            {
+                _agent.updateRotation = true;
+            }
+        }
+
+        public override void Spawned()
+        {
+            if (HasStateAuthority)
+            {
+                State = _initialState;
+                IsCrouching = _initialIsCrouching;
+                IsDead = false;
+                IsOpeningDoor = false;
+                NetworkPosition = transform.position;
+                NetworkRotation = transform.rotation;
+                NetworkMoveSpeed = 0f;
+                FollowPlayer = default;
+                HasFollowPlayer = false;
+                CurrentDoorId = InvalidTargetId;
+                DialogueClipIndex = InvalidTargetId;
+                IsCalmDownDialogue = false;
+                DialogueEventId = 0;
+                DeathType = NPCDeathType.None;
+                DeathEventId = 0;
+
+                ApplyStopDistanceForState();
+                SetAuthorityMoveSpeed(0f);
+            }
+
+            ConfigureAgentForAuthority();
+            ApplyNetworkPose();
+            ApplyNetworkAnimation();
+        }
+
+        public override void FixedUpdateNetwork()
+        {
+            if (!HasStateAuthority || IsDead)
+            {
+                return;
+            }
+
+            UpdateAuthorityFollowTarget();
+            UpdateAuthorityState();
+            UpdateAuthorityDestination();
+            UpdateAuthorityMoveSpeed();
+            WriteNetworkPose();
+        }
+
+        public override void Render()
+        {
+            ApplyNetworkPose();
+            ApplyNetworkAnimation();
+            ApplyNetworkEvents();
+        }
+
+        public void RequestFollowPlayer(PlayerRef player)
+        {
+            if (HasStateAuthority)
+            {
+                ApplyFollowPlayer(player);
+                return;
+            }
+
+            RPC_RequestFollowPlayer(player);
+        }
+
+        public void RequestSetDestination(int destinationId)
+        {
+            if (HasStateAuthority)
+            {
+                ApplyDestination(destinationId);
+                return;
+            }
+
+            RPC_RequestSetDestination(destinationId);
+        }
+
+        public void RequestSetDestinationViaDoor(int doorId, int destinationId)
+        {
+            if (HasStateAuthority)
+            {
+                ApplyDestinationViaDoor(doorId, destinationId);
+                return;
+            }
+
+            RPC_RequestSetDestinationViaDoor(doorId, destinationId);
+        }
+
+        public void RequestToggleCrouch()
+        {
+            if (HasStateAuthority)
+            {
+                ApplyToggleCrouch();
+                return;
+            }
+
+            RPC_RequestToggleCrouch();
+        }
+
+        public void RequestDie(NPCDeathType deathType)
+        {
+            if (HasStateAuthority)
+            {
+                ApplyDeath(deathType);
+                return;
+            }
+
+            RPC_RequestDie(deathType);
+        }
+
+        // Legacy PlayerType follow targets should not be used by new networked callers.
+        // Keep this only while old scene references are being migrated to PlayerRef.
+        public void StartFollowingPlayer(PlayerType playerType)
+        {
+            Debug.LogWarning("[NPCController] StartFollowingPlayer(PlayerType) is no longer supported. Use RequestFollowPlayer(PlayerRef).");
+        }
+
+        // TODO: Destination trigger가 ID 기반 요청만 사용하게 되면 이 legacy Transform 경로는 제거한다.
+        public void SetTarget(Transform target)
+        {
+            if (!HasStateAuthority)
+            {
+                Debug.LogWarning("[NPCController] SetTarget(Transform) must be replaced by RequestSetDestination(int) for networked callers.");
+                return;
+            }
+
+            ApplyDestinationTransform(target);
+        }
+
+        // TODO: Destination trigger가 ID 기반 요청만 사용하게 되면 이 legacy Transform 경로는 제거한다.
+        public void SetTargetViaDoor(Transform doorTarget, Transform finalDestination)
+        {
+            if (!HasStateAuthority)
+            {
+                Debug.LogWarning("[NPCController] SetTargetViaDoor(Transform, Transform) must be replaced by RequestSetDestinationViaDoor(int, int) for networked callers.");
+                return;
+            }
+
+            ApplyDestinationViaDoorTransform(doorTarget, finalDestination);
+        }
+
+        public void ToggleCrouch()
+        {
+            RequestToggleCrouch();
+        }
+
+        public void FinishOpeningDoor()
+        {
+            NotifyOpeningDoorAnimationFinished();
+        }
+
+        public void NotifyOpeningDoorAnimationFinished()
+        {
+            if (!HasStateAuthority || !IsOpeningDoor)
+            {
+                return;
+            }
+
+            CompleteOpeningDoor();
+        }
+
+        public void DieByExplosion()
+        {
+            RequestDie(NPCDeathType.Explosion);
+        }
+
+        public void DieBySmoke()
+        {
+            RequestDie(NPCDeathType.Smoke);
+        }
+
+        public void RequestPlayDialogue(int dialogueId)
+        {
+            if (HasStateAuthority)
+            {
+                ApplyDialogue(dialogueId);
+                return;
+            }
+
+            RPC_RequestPlayDialogue(dialogueId);
+        }
+
+        public void PlayDialogue(AudioClip clip, string text)
+        {
+            Debug.Log($"[NPCController] PlayDialogue audioSource={_audioSource != null}, clip={clip?.name}");
             
-            ApplyStopDistanceForState();
-            _agent.updateRotation = true;
-
-            SetMoveSpeed(0f);
+            if (_audioSource == null || clip == null)
+            {
+                return;
+            }
+            
+            //_audioSource.spatialBlend = 0f;
+            //_audioSource.volume = 1f;
+            _audioSource.PlayOneShot(clip);
         }
 
-        private void Update()
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestFollowPlayer(PlayerRef player, RpcInfo info = default)
         {
-            if (_isDead) return;
-        
-            UpdateState();
-            UpdateDestination();
-            UpdateMoveSpeed();
-            UpdateAnimation();
+            if (!CanRequesterControlPlayer(player, info.Source))
+            {
+                return;
+            }
+
+            ApplyFollowPlayer(player);
         }
 
-        private void SetState(NPCState state)
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestSetDestination(int destinationId, RpcInfo info = default)
         {
-            _state = state;
-            ApplyStopDistanceForState();
+            if (!CanAcceptWorldStateRequest(info.Source))
+            {
+                return;
+            }
+
+            ApplyDestination(destinationId);
         }
 
-        private void ApplyStopDistanceForState()
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestSetDestinationViaDoor(int doorId, int destinationId, RpcInfo info = default)
+        {
+            if (!CanAcceptWorldStateRequest(info.Source))
+            {
+                return;
+            }
+
+            ApplyDestinationViaDoor(doorId, destinationId);
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestToggleCrouch(RpcInfo info = default)
+        {
+            if (!CanAcceptWorldStateRequest(info.Source))
+            {
+                return;
+            }
+
+            ApplyToggleCrouch();
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestDie(NPCDeathType deathType, RpcInfo info = default)
+        {
+            if (!CanAcceptWorldStateRequest(info.Source))
+            {
+                return;
+            }
+
+            ApplyDeath(deathType);
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestPlayDialogue(int dialogueId, RpcInfo info = default)
+        {
+            if (!CanAcceptWorldStateRequest(info.Source))
+            {
+                return;
+            }
+
+            ApplyDialogue(dialogueId);
+        }
+
+        private void ConfigureAgentForAuthority()
         {
             if (_agent == null)
             {
                 return;
             }
 
-            switch (_state)
+            if (HasStateAuthority)
             {
-                case NPCState.Idle:
-                case NPCState.Follow:
-                case NPCState.OpeningDoor:
-                case NPCState.GoingFinalDestination:
-                case NPCState.Dead:
-                    _agent.stoppingDistance = _normalStopDistance;
-                    break;
-                case NPCState.GoingDoor:
-                    _agent.stoppingDistance = _doorStopDistance;
-                    break;
+                _agent.enabled = true;
+                _agent.updatePosition = true;
+                _agent.updateRotation = true;
+                return;
             }
+
+            _agent.updatePosition = false;
+            _agent.updateRotation = false;
+            _agent.enabled = false;
         }
-        
-        private void UpdateState()
+
+        private void UpdateAuthorityState()
         {
-            // Door routes are advanced by arrival and animation completion, not by trigger interrupts.
-            if (_isOpeningDoor || !HasArrived())
+            if (IsOpeningDoor || !HasArrived())
             {
                 return;
             }
 
-            if (_state == NPCState.GoingDoor)
+            if (State == NPCState.GoingDoor)
             {
                 BeginOpeningDoor();
                 return;
             }
 
-            if (_state == NPCState.GoingFinalDestination)
+            if (State == NPCState.GoingFinalDestination)
             {
                 CompleteRoute();
             }
         }
 
-        private void UpdateDestination()
+        private void UpdateAuthorityDestination()
         {
-            if (_isOpeningDoor)
+            if (IsOpeningDoor)
             {
                 return;
             }
@@ -144,14 +407,15 @@ namespace FireLink119.NPC
                 return;
             }
 
-            if (Time.time < _nextRepathTime)
+            if (GetAuthorityTime() < _nextRepathTime)
             {
                 return;
             }
 
             Vector3 targetPosition = _currentTarget.position;
+            float moveThresholdSqr = _currentTargetMoveThreshold * _currentTargetMoveThreshold;
 
-            if ((_lastDestination - targetPosition).sqrMagnitude < _currentTargetMoveThreshold * _currentTargetMoveThreshold)
+            if ((_lastDestination - targetPosition).sqrMagnitude < moveThresholdSqr)
             {
                 return;
             }
@@ -166,30 +430,48 @@ namespace FireLink119.NPC
                 StopMoving();
             }
 
-            _nextRepathTime = Time.time + _repathInterval;
+            _nextRepathTime = GetAuthorityTime() + _repathInterval;
         }
 
-        private void UpdateMoveSpeed()
+        private void UpdateAuthorityMoveSpeed()
         {
-            if (_isOpeningDoor)
+            if (IsOpeningDoor || !IsMovingToTarget())
             {
-                SetMoveSpeed(0f);
+                SetAuthorityMoveSpeed(0f);
                 return;
             }
 
-            if (!IsMovingToTarget())
+            float targetSpeed = IsCrouching ? _crouchWalkSpeed : ShouldRun() ? _runSpeed : _walkSpeed;
+            SetAuthorityMoveSpeed(targetSpeed);
+        }
+
+        private void UpdateAuthorityFollowTarget()
+        {
+            if (State != NPCState.Follow || !HasFollowPlayer)
             {
-                SetMoveSpeed(0f);
                 return;
             }
 
-            float targetSpeed = _isCrouching ? _crouchWalkSpeed : ShouldRun() ? _runSpeed : _walkSpeed;
-            SetMoveSpeed(targetSpeed);
+            Transform target = ResolveFollowTarget(FollowPlayer);
+            if (target == null)
+            {
+                HasFollowPlayer = false;
+                FollowPlayer = default;
+                StopMoving();
+                SetCurrentTarget(null);
+                SetState(NPCState.Idle);
+                return;
+            }
+
+            if (_currentTarget != target)
+            {
+                SetCurrentTarget(target);
+            }
         }
 
         private bool ShouldRun()
         {
-            if (_agent.pathPending)
+            if (_agent == null || _agent.pathPending)
             {
                 return false;
             }
@@ -199,7 +481,7 @@ namespace FireLink119.NPC
 
         private bool IsMovingToTarget()
         {
-            if (!_agent.hasPath || _agent.pathPending)
+            if (_agent == null || !_agent.enabled || !_agent.hasPath || _agent.pathPending)
             {
                 return false;
             }
@@ -209,7 +491,7 @@ namespace FireLink119.NPC
 
         private bool HasArrived()
         {
-            if (_currentTarget == null || _agent.pathPending)
+            if (_agent == null || _currentTarget == null || _agent.pathPending)
             {
                 return false;
             }
@@ -222,144 +504,177 @@ namespace FireLink119.NPC
             return Vector3.Distance(transform.position, _currentTarget.position) <= _agent.stoppingDistance;
         }
 
-        private void SetMoveSpeed(float speed)
+        private void SetAuthorityMoveSpeed(float speed)
         {
-            _currentMoveSpeed = speed;
-            _agent.speed = speed;
+            NetworkMoveSpeed = speed;
+
+            if (_agent != null && _agent.enabled)
+            {
+                _agent.speed = speed;
+            }
         }
 
         private void StopMoving()
         {
-            if (_agent.hasPath)
+            if (_agent != null && _agent.enabled && _agent.hasPath)
             {
                 _agent.ResetPath();
             }
 
             _lastDestination = Vector3.positiveInfinity;
-            SetMoveSpeed(0f);
+            SetAuthorityMoveSpeed(0f);
         }
 
-        private void UpdateAnimation()
+        private void SetState(NPCState state)
         {
-            bool isMoving = IsMovingToTarget() && _agent.velocity.sqrMagnitude > 0.01f;
-
-            float speed = isMoving ? _currentMoveSpeed : 0f;
-            float motionSpeed = 1f;
-
-            _animator.SetFloat(SpeedHash, speed, _animationDampTime, Time.deltaTime);
-            _animator.SetFloat(MotionSpeedHash, motionSpeed, _animationDampTime, Time.deltaTime);
-            _animator.SetBool(GroundedHash, true);
-            _animator.SetBool(IsCrouchingHash, _isCrouching);
+            State = state;
+            ApplyStopDistanceForState();
         }
 
-        public void StartFollowingPlayer(PlayerType playerType)
+        private void ApplyStopDistanceForState()
         {
-            bool wasInterrupted = _state == NPCState.GoingDoor ||
-                                  _state == NPCState.OpeningDoor ||
-                                  _state == NPCState.GoingFinalDestination;
+            if (_agent == null || !_agent.enabled)
+            {
+                return;
+            }
+
+            switch (State)
+            {
+                case NPCState.GoingDoor:
+                    _agent.stoppingDistance = _doorStopDistance;
+                    break;
+                case NPCState.Idle:
+                case NPCState.Follow:
+                case NPCState.OpeningDoor:
+                case NPCState.GoingFinalDestination:
+                case NPCState.Dead:
+                    _agent.stoppingDistance = _normalStopDistance;
+                    break;
+            }
+        }
+
+        private void ApplyFollowPlayer(PlayerRef player)
+        {
+            Transform target = ResolveFollowTarget(player);
+            if (target == null)
+            {
+                Debug.LogWarning($"[NPCController] Could not resolve player object for {player}.");
+                return;
+            }
+
+            bool wasInterrupted = IsRouteInProgress();
 
             if (wasInterrupted)
             {
-                Debug.Log($"Interrupted");
-                PlayRandomCalmDownDialogue();
+                ApplyRandomCalmDownDialogue();
             }
-            
+
             ClearRouteTargets();
+            CancelOpeningDoor();
+
+            FollowPlayer = player;
+            HasFollowPlayer = true;
+
             SetState(NPCState.Follow);
-            CancelOpeningDoor();
-
-            if (playerType == PlayerType.Player1)
-            {
-                SetCurrentTarget(_followablePlayer1);
-            }
-            else if (playerType == PlayerType.Player2)
-            {
-                SetCurrentTarget(_followablePlayer2);
-            }
-        }
-
-        private void PlayRandomCalmDownDialogue()
-        {
-            int index = Random.Range(0, _calmDownClips.Length);
-            PlayDialogue(_calmDownClips[index], _calmDownTexts[index]);
-        }
-
-        public void SetTarget(Transform target)
-        {
-            ClearRouteTargets();
-            CancelOpeningDoor();
-            SetState(target == null ? NPCState.Idle : NPCState.GoingFinalDestination);
             SetCurrentTarget(target);
         }
 
-        public void SetTargetViaDoor(Transform doorTarget, Transform finalDestination)
+        private void ApplyDestination(int destinationId)
         {
+            Transform destination = ResolveDestinationTarget(destinationId);
+
+            ClearRouteTargets();
+            CancelOpeningDoor();
+
+            ClearFollowTarget();
+            CurrentDoorId = InvalidTargetId;
+
+            SetState(destination == null ? NPCState.Idle : NPCState.GoingFinalDestination);
+            SetCurrentTarget(destination);
+        }
+
+        private void ApplyDestinationViaDoor(int doorId, int destinationId)
+        {
+            Transform doorTarget = ResolveDoorTarget(doorId);
+            Transform finalDestination = ResolveDestinationTarget(destinationId);
+
             if (doorTarget == null)
             {
-                SetTarget(finalDestination);
+                ApplyDestination(destinationId);
                 return;
             }
 
             CancelOpeningDoor();
 
-            _doorTarget = doorTarget;
+            ClearFollowTarget();
+            CurrentDoorId = doorId;
             _finalDestination = finalDestination;
-            _currentOpeningDoor = doorTarget.gameObject;
 
             SetState(NPCState.GoingDoor);
-            SetCurrentTarget(_doorTarget);
+            SetCurrentTarget(doorTarget);
         }
 
-        private void SetCurrentTarget(Transform target)
+        // TODO: Destination trigger가 ID 기반 요청만 사용하게 되면 이 legacy Transform 경로는 제거한다.
+        private void ApplyDestinationTransform(Transform target)
         {
-            _currentTarget = target;
-            _lastDestination = Vector3.positiveInfinity;
-            _nextRepathTime = 0f;
+            ClearRouteTargets();
+            CancelOpeningDoor();
+
+            ClearFollowTarget();
+            CurrentDoorId = InvalidTargetId;
+
+            SetState(target == null ? NPCState.Idle : NPCState.GoingFinalDestination);
+            SetCurrentTarget(target);
         }
 
-        private void ClearRouteTargets()
+        // TODO: Destination trigger가 ID 기반 요청만 사용하게 되면 이 legacy Transform 경로는 제거한다.
+        private void ApplyDestinationViaDoorTransform(Transform doorTarget, Transform finalDestination)
         {
-            _doorTarget = null;
-            _finalDestination = null;
+            if (doorTarget == null)
+            {
+                ApplyDestinationTransform(finalDestination);
+                return;
+            }
+
+            CancelOpeningDoor();
+
+            ClearFollowTarget();
+            CurrentDoorId = InvalidTargetId;
+            _finalDestination = finalDestination;
+
+            SetState(NPCState.GoingDoor);
+            SetCurrentTarget(doorTarget);
         }
 
-        public void ToggleCrouch()
+        private void ApplyToggleCrouch()
         {
-            _isCrouching = !_isCrouching;
+            if (IsDead)
+            {
+                return;
+            }
+
+            IsCrouching = !IsCrouching;
         }
 
         private void BeginOpeningDoor()
         {
-            if (_isOpeningDoor)
+            if (IsOpeningDoor)
             {
                 return;
             }
 
             SetState(NPCState.OpeningDoor);
-            _isOpeningDoor = true;
+            IsOpeningDoor = true;
+            _hasPlayedOpeningDoorTrigger = false;
             StopMoving();
-
-            _animator.SetFloat(SpeedHash, 0f);
-            _animator.ResetTrigger(OpenDoorHash);
-            _animator.SetTrigger(OpenDoorHash);
         }
 
-        public void FinishOpeningDoor()
+        private void CompleteOpeningDoor()
         {
-            if (!_isOpeningDoor)
-            {
-                return;
-            }
+            IsOpeningDoor = false;
+            OpenCurrentDoor();
 
-            _isOpeningDoor = false;
-
-            if (_currentOpeningDoor != null)
-            {
-                // todo : 나중에 바꿔야 함
-                _currentOpeningDoor.SetActive(false);
-            }
-
-            if (_state == NPCState.OpeningDoor && _finalDestination != null)
+            if (State == NPCState.OpeningDoor && _finalDestination != null)
             {
                 SetState(NPCState.GoingFinalDestination);
                 SetCurrentTarget(_finalDestination);
@@ -371,16 +686,14 @@ namespace FireLink119.NPC
 
         private void CancelOpeningDoor()
         {
-            if (!_isOpeningDoor)
+            if (!IsOpeningDoor)
             {
                 return;
             }
 
-            _isOpeningDoor = false;
+            IsOpeningDoor = false;
+            _hasPlayedOpeningDoorTrigger = false;
             ApplyStopDistanceForState();
-
-            _animator.ResetTrigger(OpenDoorHash);
-            _animator.CrossFade(IdleWalkRunBlendHash, _openDoorCancelTransitionDuration);
         }
 
         private void CompleteRoute()
@@ -389,51 +702,278 @@ namespace FireLink119.NPC
             ClearRouteTargets();
             SetCurrentTarget(null);
             SetState(NPCState.Idle);
-
-            Debug.Log("Final Destination 도착!");
         }
 
-        public void DieByExplosion()
+        private void ApplyDeath(NPCDeathType deathType)
         {
-            Die(DeathByExplosionHash);
-        }
-
-        public void DieBySmoke()
-        {
-            Die(DeathBySmokeHash);
-        }
-
-        private void Die(int deathTriggerHash)
-        {
-            if (_isDead)
+            if (IsDead)
             {
                 return;
             }
 
-            _isDead = true;
-            SetState(NPCState.Dead);
+            IsDead = true;
+            IsOpeningDoor = false;
+            IsCrouching = false;
+            DeathType = deathType;
+            DeathEventId++;
 
-            _isOpeningDoor = false;
+            SetState(NPCState.Dead);
             ClearRouteTargets();
+            ClearFollowTarget();
             SetCurrentTarget(null);
             StopMoving();
 
-            _agent.isStopped = true;
+            if (_agent != null && _agent.enabled)
+            {
+                _agent.isStopped = true;
+            }
+
+            NetworkMoveSpeed = 0f;
+            WriteNetworkPose();
+        }
+
+        private void ApplyRandomCalmDownDialogue()
+        {
+            if (_calmDownClips == null || _calmDownClips.Length == 0)
+            {
+                return;
+            }
+
+            int textCount = _calmDownTexts == null ? 0 : _calmDownTexts.Length;
+            int availableCount = textCount > 0 ? Mathf.Min(_calmDownClips.Length, textCount) : _calmDownClips.Length;
+
+            if (availableCount <= 0)
+            {
+                return;
+            }
+
+            DialogueClipIndex = Random.Range(0, availableCount);
+            IsCalmDownDialogue = true;
+            DialogueEventId++;
+        }
+
+        private void ApplyDialogue(int dialogueId)
+        {
+            int clipCount = _dialogueClips == null ? -1 : _dialogueClips.Length;
+            Debug.Log($"[NPCController] ApplyDialogue id={dialogueId}, clipCount={clipCount}, HasStateAuthority={HasStateAuthority}");
+            
+            if (_dialogueClips == null ||
+                dialogueId < 0 ||
+                dialogueId >= _dialogueClips.Length)
+            {
+                Debug.LogWarning($"[NPCController] Dialogue rejected. id={dialogueId}, clipCount={clipCount}");
+                return;
+            }
+
+            DialogueClipIndex = dialogueId;
+            IsCalmDownDialogue = false;
+            DialogueEventId++;
+            
+            Debug.Log($"[NPCController] Dialogue accepted. EventId={DialogueEventId}, ClipIndex={DialogueClipIndex}");
+        }
+
+        private bool CanRequesterControlPlayer(PlayerRef requestedPlayer, PlayerRef requester)
+        {
+            if (requester == default)
+            {
+                return true;
+            }
+
+            return requester == requestedPlayer;
+        }
+
+        private bool CanAcceptWorldStateRequest(PlayerRef requester)
+        {
+            // Host-owned triggers call the Apply* path directly. Client RPCs that change shared
+            // NPC/world state should be accepted only after a real game-specific validation is added.
+            return requester == default;
+        }
+
+        private bool IsRouteInProgress()
+        {
+            return State == NPCState.GoingDoor ||
+                   State == NPCState.OpeningDoor ||
+                   State == NPCState.GoingFinalDestination;
+        }
+
+        private void SetCurrentTarget(Transform target)
+        {
+            _currentTarget = target;
+            _lastDestination = Vector3.positiveInfinity;
+            _nextRepathTime = 0f;
+        }
+
+        private void ClearRouteTargets()
+        {
+            _finalDestination = null;
+        }
+
+        private void ClearFollowTarget()
+        {
+            FollowPlayer = default;
+            HasFollowPlayer = false;
+        }
+
+        private Transform ResolveFollowTarget(PlayerRef player)
+        {
+            if (Runner == null)
+            {
+                return null;
+            }
+
+            NetworkObject playerObject = Runner.GetPlayerObject(player);
+            return playerObject != null ? playerObject.transform : null;
+        }
+
+        private Transform ResolveDestinationTarget(int destinationId)
+        {
+            if (_destinationTargets == null ||
+                destinationId < 0 ||
+                destinationId >= _destinationTargets.Length)
+            {
+                return null;
+            }
+
+            return _destinationTargets[destinationId];
+        }
+
+        private Transform ResolveDoorTarget(int doorId)
+        {
+            if (_doorTargets == null ||
+                doorId < 0 ||
+                doorId >= _doorTargets.Length)
+            {
+                return null;
+            }
+
+            return _doorTargets[doorId];
+        }
+
+        private void OpenCurrentDoor()
+        {
+            TryOpenNetworkDoor(CurrentDoorId);
+        }
+
+        private bool TryOpenNetworkDoor(int doorId)
+        {
+            // Required for PLAN.md compliance: doorId must resolve to a separate networked door
+            // component and set its replicated open state here. Do not call SetActive locally.
+            return false;
+        }
+
+        private float GetAuthorityTime()
+        {
+            return Runner == null ? Time.time : (float)Runner.SimulationTime;
+        }
+
+        private void WriteNetworkPose()
+        {
+            NetworkPosition = transform.position;
+            NetworkRotation = transform.rotation;
+        }
+
+        private void ApplyNetworkPose()
+        {
+            if (HasStateAuthority)
+            {
+                return;
+            }
+
+            transform.SetPositionAndRotation(NetworkPosition, NetworkRotation);
+        }
+
+        private void ApplyNetworkAnimation()
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+
+            float speed = IsDead ? 0f : NetworkMoveSpeed;
+
+            _animator.SetFloat(SpeedHash, speed, _animationDampTime, Time.deltaTime);
+            _animator.SetFloat(MotionSpeedHash, IsDead ? 0f : 1f, _animationDampTime, Time.deltaTime);
+            _animator.SetBool(GroundedHash, true);
+            _animator.SetBool(IsCrouchingHash, IsCrouching);
+
+            if (IsOpeningDoor && !_hasPlayedOpeningDoorTrigger)
+            {
+                _animator.ResetTrigger(OpenDoorHash);
+                _animator.SetTrigger(OpenDoorHash);
+                _hasPlayedOpeningDoorTrigger = true;
+            }
+
+            if (!IsOpeningDoor && _hasPlayedOpeningDoorTrigger && State != NPCState.OpeningDoor)
+            {
+                _animator.ResetTrigger(OpenDoorHash);
+                _animator.CrossFade(IdleWalkRunBlendHash, _openDoorCancelTransitionDuration);
+                _hasPlayedOpeningDoorTrigger = false;
+            }
+        }
+
+        private void ApplyNetworkEvents()
+        {
+            ApplyDeathEvent();
+            ApplyDialogueEvent();
+        }
+
+        private void ApplyDeathEvent()
+        {
+            if (DeathEventId == _lastHandledDeathEventId)
+            {
+                return;
+            }
+
+            _lastHandledDeathEventId = DeathEventId;
+
+            if (_animator == null || DeathType == NPCDeathType.None)
+            {
+                return;
+            }
 
             _animator.ResetTrigger(OpenDoorHash);
             _animator.SetFloat(SpeedHash, 0f);
             _animator.SetFloat(MotionSpeedHash, 0f);
             _animator.SetBool(IsCrouchingHash, false);
 
-            _animator.SetTrigger(deathTriggerHash);
+            switch (DeathType)
+            {
+                case NPCDeathType.Explosion:
+                    _animator.SetTrigger(DeathByExplosionHash);
+                    break;
+                case NPCDeathType.Smoke:
+                    _animator.SetTrigger(DeathBySmokeHash);
+                    break;
+            }
         }
 
-        public void PlayDialogue(AudioClip clip, string text)
+        private void ApplyDialogueEvent()
         {
-            //_audioSource.Stop();
-            _audioSource.PlayOneShot(clip);
+            if (DialogueEventId == _lastHandledDialogueEventId)
+            {
+                return;
+            }
             
-            // todo : 말풍선에다 텍스트도 출력
+            Debug.Log($"[NPCController] ApplyDialogueEvent event={DialogueEventId}, last={_lastHandledDialogueEventId}, index={DialogueClipIndex}, calm={IsCalmDownDialogue}");
+
+            _lastHandledDialogueEventId = DialogueEventId;
+
+            AudioClip[] clips = IsCalmDownDialogue ? _calmDownClips : _dialogueClips;
+            string[] texts = IsCalmDownDialogue ? _calmDownTexts : _dialogueTexts;
+
+            if (clips == null || DialogueClipIndex < 0 || DialogueClipIndex >= clips.Length)
+            {
+                Debug.LogWarning($"[NPCController] Dialogue event rejected. clipsNull={clips == null}, index={DialogueClipIndex}");
+                return;
+            }
+
+            AudioClip clip = clips[DialogueClipIndex];
+            string text = texts != null && DialogueClipIndex < texts.Length
+                ? texts[DialogueClipIndex]
+                : string.Empty;
+
+            Debug.Log($"[NPCController] Playing dialogue clip={clip?.name}, text={text}");
+            PlayDialogue(clip, text);
         }
     }
 }

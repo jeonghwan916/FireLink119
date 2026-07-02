@@ -33,6 +33,8 @@ namespace FireLink119.Extinguisher
         [Networked] private NetworkBool IsFiring { get; set; }
         [Networked] private Vector3 NetworkedPosition { get; set; }
         [Networked] private Quaternion NetworkedRotation { get; set; }
+        [Networked] private Vector3 NetworkedRayOriginPosition { get; set; }
+        [Networked] private Quaternion NetworkedRayOriginRotation { get; set; }
 
         public bool IsNetworkReady => _isSpawned && Object != null && Runner != null;
         public bool NetworkIsHeld => IsNetworkReady && IsHeld;
@@ -96,6 +98,10 @@ namespace FireLink119.Extinguisher
                 IsFiring = false;
                 NetworkedPosition = transform.position;
                 NetworkedRotation = transform.rotation;
+
+                Transform rayOrigin = GetRayOrigin();
+                NetworkedRayOriginPosition = rayOrigin.position;
+                NetworkedRayOriginRotation = rayOrigin.rotation;
             }
 
             ApplyNetworkState(force: true);
@@ -115,8 +121,15 @@ namespace FireLink119.Extinguisher
 
             if (HasStateAuthority)
             {
-                NetworkedPosition = transform.position;
-                NetworkedRotation = transform.rotation;
+                if (!IsHeld || HeldBy == Runner.LocalPlayer)
+                {
+                    NetworkedPosition = transform.position;
+                    NetworkedRotation = transform.rotation;
+
+                    Transform rayOrigin = GetRayOrigin();
+                    NetworkedRayOriginPosition = rayOrigin.position;
+                    NetworkedRayOriginRotation = rayOrigin.rotation;
+                }
 
                 if (IsFiring)
                 {
@@ -127,7 +140,13 @@ namespace FireLink119.Extinguisher
             if (IsLocallyHeld() && Time.time >= _nextPoseSendTime)
             {
                 _nextPoseSendTime = Time.time + _poseSendInterval;
-                RPC_SendHeldPose(transform.position, transform.rotation);
+
+                Transform rayOrigin = GetRayOrigin();
+                RPC_SendHeldPose(
+                    transform.position,
+                    transform.rotation,
+                    rayOrigin.position,
+                    rayOrigin.rotation);
             }
         }
 
@@ -261,7 +280,12 @@ namespace FireLink119.Extinguisher
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority, Channel = RpcChannel.Unreliable)]
-        private void RPC_SendHeldPose(Vector3 position, Quaternion rotation, RpcInfo info = default)
+        private void RPC_SendHeldPose(
+            Vector3 position,
+            Quaternion rotation,
+            Vector3 rayOriginPosition,
+            Quaternion rayOriginRotation,
+            RpcInfo info = default)
         {
             if (!IsHeld || HeldBy != info.Source)
             {
@@ -271,6 +295,8 @@ namespace FireLink119.Extinguisher
             transform.SetPositionAndRotation(position, rotation);
             NetworkedPosition = position;
             NetworkedRotation = rotation;
+            NetworkedRayOriginPosition = rayOriginPosition;
+            NetworkedRayOriginRotation = rayOriginRotation;
         }
 
         private void SetGrabbed(PlayerRef player)
@@ -296,6 +322,10 @@ namespace FireLink119.Extinguisher
             IsFiring = false;
             NetworkedPosition = transform.position;
             NetworkedRotation = transform.rotation;
+
+            Transform rayOrigin = GetRayOrigin();
+            NetworkedRayOriginPosition = rayOrigin.position;
+            NetworkedRayOriginRotation = rayOrigin.rotation;
         }
 
         private void SetSafetyPinPulled(PlayerRef player)
@@ -324,14 +354,12 @@ namespace FireLink119.Extinguisher
 
         private void TryExtinguishFire()
         {
-            if (_rayOrigin == null)
-            {
-                return;
-            }
+            Vector3 origin = NetworkedRayOriginPosition;
+            Vector3 direction = NetworkedRayOriginRotation * Vector3.forward;
 
             if (!Physics.Raycast(
-                    _rayOrigin.position,
-                    _rayOrigin.forward,
+                    origin,
+                    direction,
                     out RaycastHit hit,
                     _range,
                     _fireLayer,
@@ -345,6 +373,11 @@ namespace FireLink119.Extinguisher
             {
                 fire.TakeExtinguish(Runner.DeltaTime);
             }
+        }
+
+        private Transform GetRayOrigin()
+        {
+            return _rayOrigin != null ? _rayOrigin : transform;
         }
 
         private void ApplyNetworkState(bool force)

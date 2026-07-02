@@ -1486,7 +1486,7 @@ MonoBehaviour:
   _dialogueClips:
   - {fileID: 8300000, guid: 7720c75ebf749614c80ae09b4cd5f8f8, type: 3}
   _dialogueTexts:
-  - ddd
+  - 1212
   _State: 0
   _IsDead:
     _value: 0

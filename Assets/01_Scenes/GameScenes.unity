@@ -390,6 +390,42 @@ PrefabInstance:
       propertyPath: SortKey
       value: 1031213061
       objectReference: {fileID: 0}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: _doorTargets.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: _networkDoors.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: '_doorTargets.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1620586663}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: '_doorTargets.Array.data[1]'
+      value: 
+      objectReference: {fileID: 1768473284}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: '_networkDoors.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1620586668}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: '_networkDoors.Array.data[1]'
+      value: 
+      objectReference: {fileID: 1768473286}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: _destinationTargets.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: '_destinationTargets.Array.data[0]'
+      value: 
+      objectReference: {fileID: 1295292211}
+    - target: {fileID: 7828536666634395544, guid: 84080cdc2611c52439a0fd1b90d51925, type: 3}
+      propertyPath: '_destinationTargets.Array.data[1]'
+      value: 
+      objectReference: {fileID: 1755015574}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2061,8 +2097,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d47f142ce18098469b4a3b178752783, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCDestinationSettingTrigger
-  _doorTargetId: -1
-  _destinationId: -1
+  _doorTargetId: 1
+  _destinationId: 1
   _doorTarget: {fileID: 1620586663}
   _destination: {fileID: 1755015574}
   _dialogueId: 0
@@ -6320,8 +6356,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d47f142ce18098469b4a3b178752783, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCDestinationSettingTrigger
-  _doorTargetId: -1
-  _destinationId: -1
+  _doorTargetId: 0
+  _destinationId: 0
   _doorTarget: {fileID: 1620586663}
   _destination: {fileID: 1295292211}
   _dialogueId: 0

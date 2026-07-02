@@ -187,6 +187,12 @@ namespace FireLink119.Extinguisher
 
         private void OnSafetyPinSocketExited(SelectExitEventArgs args)
         {
+            if (!IsHeldByLocalPlayer)
+            {
+                Debug.Log($"[Extinguisher][SafetyPinSocketExited] ignored because extinguisher is not held by local player. local={GetLocalPlayerDebug()} held={NetworkIsHeld} heldByLocal={IsHeldByLocalPlayer}");
+                return;
+            }
+
             RequestSafetyPinPulled();
         }
 

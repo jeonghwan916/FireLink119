@@ -5649,6 +5649,7 @@ MonoBehaviour:
   NestedObjects: []
   NetworkedBehaviours:
   - {fileID: 2722525320102824734}
+  - {fileID: 1882896541935586338}
   ForceRemoteRenderTimeframe: 0
 --- !u!1 &7950569006448082556
 GameObject:
@@ -5788,8 +5789,8 @@ Rigidbody:
     m_Bits: 0
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
@@ -10798,6 +10799,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8575774495412534696}
   - component: {fileID: 2844583868430011803}
+  - component: {fileID: 1882896541935586338}
   m_Layer: 0
   m_Name: SafetyPinSocket
   m_TagString: Untagged
@@ -10868,6 +10870,22 @@ MonoBehaviour:
   m_SocketScaleMode: 0
   m_FixedScale: {x: 1, y: 1, z: 1}
   m_TargetBoundsSize: {x: 1, y: 1, z: 1}
+--- !u!114 &1882896541935586338
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9176100453427782267}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f98b10ebb407b2a478fcfd536383cc77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Extinguisher.SafetyPinSocketInitializer
+  _socket: {fileID: 2844583868430011803}
+  _safetyPin: {fileID: 939489389942801751}
+  _restoreFrameCount: 2
+  _logDebug: 0
 --- !u!1001 &7375403521586786452
 PrefabInstance:
   m_ObjectHideFlags: 0

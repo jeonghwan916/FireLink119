@@ -1,4 +1,5 @@
 using Fusion;
+using FireLink119.Network;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -21,6 +22,7 @@ namespace FireLink119.NPC
         [Header("Network Targets")]
         [SerializeField] private Transform[] _destinationTargets;
         [SerializeField] private Transform[] _doorTargets;
+        [SerializeField] private NetworkDoor[] _networkDoors;
 
         [Header("Movement")]
         [SerializeField] private float _walkSpeed = 2f;
@@ -856,9 +858,36 @@ namespace FireLink119.NPC
 
         private bool TryOpenNetworkDoor(int doorId)
         {
-            // Required for PLAN.md compliance: doorId must resolve to a separate networked door
-            // component and set its replicated open state here. Do not call SetActive locally.
-            return false;
+            NetworkDoor door = ResolveNetworkDoor(doorId);
+            if (door == null)
+            {
+                Debug.LogWarning($"[NPCController] Network door not found. DoorId: {doorId}");
+                return false;
+            }
+
+            Debug.Log($"[NPCController] TryOpenNetworkDoor. DoorId={doorId}, DoorFound={door != null}");
+
+            door.Open();
+            return true;
+        }
+
+        private NetworkDoor ResolveNetworkDoor(int doorId)
+        {
+            if (_networkDoors == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < _networkDoors.Length; i++)
+            {
+                NetworkDoor door = _networkDoors[i];
+                if (door != null && door.DoorId == doorId)
+                {
+                    return door;
+                }
+            }
+
+            return null;
         }
 
         private float GetAuthorityTime()

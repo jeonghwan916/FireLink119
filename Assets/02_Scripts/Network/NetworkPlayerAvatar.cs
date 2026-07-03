@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using FireLink119.Player;
 using Fusion;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace FireLink119.Network
 {
@@ -17,6 +19,7 @@ namespace FireLink119.Network
 
         [Header("Room Start")]
         [SerializeField] private float _roomStartPressWindowSeconds = 1.5f;
+        [SerializeField] private string _gameSceneName = "GameScenes";
 
         [Header("Animator Parameters")]
         [SerializeField] private string _isMovingParameter = "IsMoving";
@@ -43,6 +46,7 @@ namespace FireLink119.Network
         private static float _hostRoomStartPressedTime = float.NegativeInfinity;
         private static float _clientRoomStartPressedTime = float.NegativeInfinity;
         private static bool _isRoomGameStartApproved;
+        private static bool _isGameSceneLoadRequested;
 
         private void Awake()
         {
@@ -284,8 +288,13 @@ namespace FireLink119.Network
         [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
         private void RPC_NotifyRoomGameStartApproved()
         {
-            Debug.Log("[NetworkPlayerAvatar] Room game start approved. Scene loading is intentionally not executed yet.");
+            Debug.Log("[NetworkPlayerAvatar] Room game start approved.");
             RoomGameStartApproved?.Invoke();
+
+            if (HasStateAuthority)
+            {
+                TryLoadGameScene();
+            }
         }
 
         [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
@@ -322,6 +331,30 @@ namespace FireLink119.Network
 
             _isRoomGameStartApproved = true;
             RPC_NotifyRoomGameStartApproved();
+        }
+
+        private void TryLoadGameScene()
+        {
+            if (_isGameSceneLoadRequested)
+            {
+                return;
+            }
+
+            if (Runner == null)
+            {
+                Debug.LogWarning("[NetworkPlayerAvatar] NetworkRunner is required to load the game scene.");
+                return;
+            }
+
+            int gameSceneBuildIndex = GetBuildIndexBySceneName(_gameSceneName);
+            if (gameSceneBuildIndex < 0)
+            {
+                Debug.LogError($"[NetworkPlayerAvatar] Game scene is not registered in Build Settings: {_gameSceneName}");
+                return;
+            }
+
+            _isGameSceneLoadRequested = true;
+            Runner.LoadScene(SceneRef.FromIndex(gameSceneBuildIndex), LoadSceneMode.Single);
         }
 
         private LobbyRoomRole GetExpectedRoleForInputAuthority()
@@ -363,6 +396,28 @@ namespace FireLink119.Network
             _hostRoomStartPressedTime = float.NegativeInfinity;
             _clientRoomStartPressedTime = float.NegativeInfinity;
             _isRoomGameStartApproved = false;
+            _isGameSceneLoadRequested = false;
+        }
+
+        private int GetBuildIndexBySceneName(string sceneName)
+        {
+            if (string.IsNullOrWhiteSpace(sceneName))
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
+            {
+                string scenePath = SceneUtility.GetScenePathByBuildIndex(i);
+                string buildSceneName = Path.GetFileNameWithoutExtension(scenePath);
+
+                if (buildSceneName == sceneName)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
     }
 }

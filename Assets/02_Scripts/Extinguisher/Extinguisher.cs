@@ -174,14 +174,12 @@ namespace FireLink119.Extinguisher
         private void OnGrabbed(SelectEnterEventArgs args)
         {
             _isLocallySelected = true;
-            Debug.Log($"[Extinguisher][OnGrabbed] local={GetLocalPlayerDebug()} hasState={HasStateAuthority} ready={IsNetworkReady} held={NetworkIsHeld} heldByLocal={IsHeldByLocalPlayer} pos={transform.position}");
             RequestGrab();
         }
 
         private void OnReleased(SelectExitEventArgs args)
         {
             _isLocallySelected = false;
-            Debug.Log($"[Extinguisher][OnReleased] local={GetLocalPlayerDebug()} hasState={HasStateAuthority} ready={IsNetworkReady} held={NetworkIsHeld} heldByLocal={IsHeldByLocalPlayer} pos={transform.position}");
             RequestRelease();
         }
 
@@ -189,7 +187,6 @@ namespace FireLink119.Extinguisher
         {
             if (!IsHeldByLocalPlayer)
             {
-                Debug.Log($"[Extinguisher][SafetyPinSocketExited] ignored because extinguisher is not held by local player. local={GetLocalPlayerDebug()} held={NetworkIsHeld} heldByLocal={IsHeldByLocalPlayer}");
                 return;
             }
 
@@ -198,7 +195,6 @@ namespace FireLink119.Extinguisher
 
         private void OnFireStart(ActivateEventArgs args)
         {
-            Debug.Log($"[Extinguisher] FireStart local={Runner.LocalPlayer} held={NetworkIsHeld} heldByLocal={IsHeldByLocalPlayer} pin={NetworkIsSafetyPinPulled}");
             RequestFiring(true);
         }
 
@@ -211,12 +207,9 @@ namespace FireLink119.Extinguisher
         {
             if (!IsNetworkReady)
             {
-                Debug.LogWarning("[Extinguisher][RequestGrab] ignored because network is not ready.");
                 return;
             }
-
-            Debug.Log($"[Extinguisher][RequestGrab] local={Runner.LocalPlayer} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
-
+            
             if (HasStateAuthority)
             {
                 SetGrabbed(Runner.LocalPlayer);
@@ -230,12 +223,9 @@ namespace FireLink119.Extinguisher
         {
             if (!IsNetworkReady)
             {
-                Debug.LogWarning("[Extinguisher][RequestRelease] ignored because network is not ready.");
                 return;
             }
-
-            Debug.Log($"[Extinguisher][RequestRelease] local={Runner.LocalPlayer} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
-
+            
             if (HasStateAuthority)
             {
                 SetReleased(Runner.LocalPlayer);
@@ -285,7 +275,6 @@ namespace FireLink119.Extinguisher
             if (Time.time >= _nextPoseDebugTime)
             {
                 _nextPoseDebugTime = Time.time + 0.5f;
-                Debug.Log($"[Extinguisher][SendPose] local={Runner.LocalPlayer} hasState={HasStateAuthority} selected={_isLocallySelected} held={IsHeld} heldBy={HeldBy} heldByLocal={IsHeldByLocalPlayer} pos={transform.position} rayPos={rayOrigin.position}");
             }
 
             RPC_SendHeldPose(
@@ -298,14 +287,12 @@ namespace FireLink119.Extinguisher
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
         private void RPC_RequestGrab(RpcInfo info = default)
         {
-            Debug.Log($"[Extinguisher][RPC_RequestGrab] receiverLocal={Runner.LocalPlayer} source={info.Source} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
             SetGrabbed(info.Source);
         }
 
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
         private void RPC_RequestRelease(RpcInfo info = default)
         {
-            Debug.Log($"[Extinguisher][RPC_RequestRelease] receiverLocal={Runner.LocalPlayer} source={info.Source} hasState={HasStateAuthority} held={IsHeld} heldBy={HeldBy}");
             SetReleased(info.Source);
         }
 
@@ -332,7 +319,6 @@ namespace FireLink119.Extinguisher
             if (Time.time >= _nextPoseReceiveDebugTime)
             {
                 _nextPoseReceiveDebugTime = Time.time + 0.5f;
-                Debug.Log($"[Extinguisher][RecvPose] receiverLocal={Runner.LocalPlayer} source={info.Source} held={IsHeld} heldBy={HeldBy} accepted={IsHeld && HeldBy == info.Source} pos={position} rayPos={rayOriginPosition}");
             }
 
             if (!IsHeld || HeldBy != info.Source)
@@ -349,27 +335,19 @@ namespace FireLink119.Extinguisher
 
         private void SetGrabbed(PlayerRef player)
         {
-            Debug.Log($"[Extinguisher][SetGrabbed] player={player} beforeHeld={IsHeld} beforeHeldBy={HeldBy}");
-
             if (IsHeld && HeldBy != player)
             {
-                Debug.Log($"[Extinguisher][SetGrabbed] rejected player={player} currentHeldBy={HeldBy}");
                 return;
             }
 
             IsHeld = true;
             HeldBy = player;
-
-            Debug.Log($"[Extinguisher][SetGrabbed] afterHeld={IsHeld} afterHeldBy={HeldBy}");
         }
 
         private void SetReleased(PlayerRef player)
         {
-            Debug.Log($"[Extinguisher][SetReleased] player={player} beforeHeld={IsHeld} beforeHeldBy={HeldBy}");
-
             if (!IsHeld || HeldBy != player)
             {
-                Debug.Log($"[Extinguisher][SetReleased] rejected player={player} currentHeld={IsHeld} currentHeldBy={HeldBy}");
                 return;
             }
 
@@ -382,14 +360,10 @@ namespace FireLink119.Extinguisher
             Transform rayOrigin = GetRayOrigin();
             NetworkedRayOriginPosition = rayOrigin.position;
             NetworkedRayOriginRotation = rayOrigin.rotation;
-
-            Debug.Log($"[Extinguisher][SetReleased] afterHeld={IsHeld} afterHeldBy={HeldBy} pos={NetworkedPosition}");
         }
 
         private void SetSafetyPinPulled(PlayerRef player)
         {
-            Debug.Log($"[Extinguisher] SetSafetyPinPulled player={player} held={IsHeld} heldBy={HeldBy}");
-
             if (!IsHeld || HeldBy != player)
             {
                 return;
@@ -400,8 +374,6 @@ namespace FireLink119.Extinguisher
 
         private void SetFiring(PlayerRef player, bool firing)
         {
-            Debug.Log($"[Extinguisher] SetFiring player={player} held={IsHeld} heldBy={HeldBy} pin={IsSafetyPinPulled} firing={firing}");
-
             if (!IsHeld || HeldBy != player)
             {
                 return;

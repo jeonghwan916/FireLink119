@@ -1,3 +1,6 @@
+# PLAN for Shared Mode - SafetyPinGrabCondition.cs
+
+```csharp
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Filtering;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -58,3 +61,11 @@ namespace FireLink119.Extinguisher
         }
     }
 }
+```
+
+## Self Review
+
+- This script does not write networked state. It only filters local XR selection.
+- Hand selection is allowed only when the local player is already holding the extinguisher and the pin has not been pulled.
+- Socket selection remains allowed before the pin is pulled, and can be blocked after the pin is pulled.
+- `InputAuthority`, Host/Client role checks, `runner.IsServer`, RPCs, and debug logs are not used.

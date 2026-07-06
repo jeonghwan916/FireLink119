@@ -8,6 +8,8 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 namespace FireLink119.Extinguisher
 {
     [RequireComponent(typeof(NetworkObject))]
+    [RequireComponent(typeof(NetworkTransform))]
+    [RequireComponent(typeof(Rigidbody))]
     [RequireComponent(typeof(XRGrabInteractable))]
     public class Extinguisher : NetworkBehaviour, IStateAuthorityChanged
     {
@@ -30,10 +32,6 @@ namespace FireLink119.Extinguisher
         [Networked] private PlayerRef HeldBy { get; set; }
         [Networked] private NetworkBool IsSafetyPinPulled { get; set; }
         [Networked] private NetworkBool IsFiring { get; set; }
-        [Networked] private Vector3 NetworkedPosition { get; set; }
-        [Networked] private Quaternion NetworkedRotation { get; set; }
-        [Networked] private Vector3 NetworkedRayOriginPosition { get; set; }
-        [Networked] private Quaternion NetworkedRayOriginRotation { get; set; }
 
         public bool IsNetworkReady => _isSpawned && Object != null && Runner != null;
         public bool NetworkIsHeld => IsNetworkReady && IsHeld;
@@ -42,6 +40,7 @@ namespace FireLink119.Extinguisher
         public bool IsHeldByLocalPlayer => IsNetworkReady && IsHeld && HeldBy == Runner.LocalPlayer;
 
         private XRGrabInteractable _grabInteractable;
+        private Rigidbody _rigidbody;
         private AudioSource _extinguisherSfx;
         private bool _isSpawned;
         private bool _isLocallySelected;
@@ -53,6 +52,7 @@ namespace FireLink119.Extinguisher
         private void Awake()
         {
             _grabInteractable = GetComponent<XRGrabInteractable>();
+            _rigidbody = GetComponent<Rigidbody>();
             _extinguisherSfx = GetComponent<AudioSource>();
 
             if (_rayOrigin == null)
@@ -97,7 +97,7 @@ namespace FireLink119.Extinguisher
                 HeldBy = PlayerRef.None;
                 IsSafetyPinPulled = false;
                 IsFiring = false;
-                WriteCurrentPose();
+                EnsureReleasedPhysicsState();
             }
 
             ApplyNetworkState(force: true);
@@ -131,11 +131,6 @@ namespace FireLink119.Extinguisher
             if (HasStateAuthority)
             {
                 RecoverAbandonedHold();
-
-                if (!IsHeld || HeldBy == Runner.LocalPlayer)
-                {
-                    WriteCurrentPose();
-                }
             }
 
             if (Runner.IsSharedModeMasterClient && IsFiring)
@@ -152,11 +147,6 @@ namespace FireLink119.Extinguisher
             }
 
             ApplyNetworkState(force: false);
-
-            if (!IsHeldByLocalPlayer)
-            {
-                transform.SetPositionAndRotation(NetworkedPosition, NetworkedRotation);
-            }
         }
 
         private void OnGrabbed(SelectEnterEventArgs args)
@@ -233,7 +223,6 @@ namespace FireLink119.Extinguisher
             }
 
             SetReleased();
-            Runner.ReleaseStateAuthority(Object.Id);
         }
 
         private void SetGrabbed(PlayerRef player)
@@ -245,7 +234,6 @@ namespace FireLink119.Extinguisher
 
             IsHeld = true;
             HeldBy = player;
-            WriteCurrentPose();
         }
 
         private void SetReleased()
@@ -253,7 +241,14 @@ namespace FireLink119.Extinguisher
             IsHeld = false;
             HeldBy = PlayerRef.None;
             IsFiring = false;
-            WriteCurrentPose();
+            EnsureReleasedPhysicsState();
+        }
+
+        private void EnsureReleasedPhysicsState()
+        {
+            _rigidbody.isKinematic = false;
+            _rigidbody.useGravity = true;
+            _rigidbody.WakeUp();
         }
 
         private void SetFiring(bool firing)
@@ -266,23 +261,13 @@ namespace FireLink119.Extinguisher
             IsFiring = firing && IsSafetyPinPulled;
         }
 
-        private void WriteCurrentPose()
+        private void TryExtinguishFire()
         {
             Transform rayOrigin = GetRayOrigin();
 
-            NetworkedPosition = transform.position;
-            NetworkedRotation = transform.rotation;
-            NetworkedRayOriginPosition = rayOrigin.position;
-            NetworkedRayOriginRotation = rayOrigin.rotation;
-        }
-
-        private void TryExtinguishFire()
-        {
-            Vector3 direction = NetworkedRayOriginRotation * Vector3.forward;
-
             if (!Physics.Raycast(
-                    NetworkedRayOriginPosition,
-                    direction,
+                    rayOrigin.position,
+                    rayOrigin.forward,
                     out RaycastHit hit,
                     _range,
                     _fireLayer,
@@ -335,7 +320,7 @@ namespace FireLink119.Extinguisher
 
             ApplySafetyPinVisuals(IsSafetyPinPulled, force);
 
-            if (_grabInteractable != null && !IsHeldByLocalPlayer)
+            if (!IsHeldByLocalPlayer)
             {
                 _grabInteractable.enabled = !IsHeldByOtherPlayer();
             }

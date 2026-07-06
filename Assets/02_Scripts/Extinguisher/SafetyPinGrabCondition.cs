@@ -28,7 +28,7 @@ namespace FireLink119.Extinguisher
                 return CanSelectBySocket();
             }
 
-            return CanSelectByLocalHolder();
+            return CanSelectByLocalHolder(interactor, interactable);
         }
 
         private bool CanSelectBySocket()
@@ -46,15 +46,34 @@ namespace FireLink119.Extinguisher
             return !_blockSocketSelectionAfterPulled || !_extinguisher.NetworkIsSafetyPinPulled;
         }
 
-        private bool CanSelectByLocalHolder()
+        private bool CanSelectByLocalHolder(
+            IXRSelectInteractor interactor,
+            IXRSelectInteractable interactable)
         {
             if (_extinguisher == null || !_extinguisher.IsNetworkReady)
             {
                 return false;
             }
 
-            return _extinguisher.IsHeldByLocalPlayer &&
-                   !_extinguisher.NetworkIsSafetyPinPulled;
+            if (!_extinguisher.IsHeldByLocalPlayer)
+            {
+                return false;
+            }
+
+            if (!_extinguisher.NetworkIsSafetyPinPulled)
+            {
+                return true;
+            }
+
+            foreach (IXRSelectInteractor selectingInteractor in interactable.interactorsSelecting)
+            {
+                if (selectingInteractor == interactor)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

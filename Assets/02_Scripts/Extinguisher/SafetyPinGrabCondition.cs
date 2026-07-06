@@ -8,8 +8,6 @@ namespace FireLink119.Extinguisher
     public class SafetyPinGrabCondition : MonoBehaviour, IXRSelectFilter
     {
         [SerializeField] private Extinguisher _extinguisher;
-        [SerializeField] private bool _allowSocketSelectionBeforePulled = true;
-        [SerializeField] private bool _blockSocketSelectionAfterPulled = true;
 
         public bool canProcess => isActiveAndEnabled;
 
@@ -33,17 +31,12 @@ namespace FireLink119.Extinguisher
 
         private bool CanSelectBySocket()
         {
-            if (!_allowSocketSelectionBeforePulled)
-            {
-                return false;
-            }
-
             if (_extinguisher == null || !_extinguisher.IsNetworkReady)
             {
                 return true;
             }
 
-            return !_blockSocketSelectionAfterPulled || !_extinguisher.NetworkIsSafetyPinPulled;
+            return !_extinguisher.NetworkIsSafetyPinPulled;
         }
 
         private bool CanSelectByLocalHolder(
@@ -65,6 +58,13 @@ namespace FireLink119.Extinguisher
                 return true;
             }
 
+            return IsCurrentlySelectedBy(interactor, interactable);
+        }
+
+        private static bool IsCurrentlySelectedBy(
+            IXRSelectInteractor interactor,
+            IXRSelectInteractable interactable)
+        {
             foreach (IXRSelectInteractor selectingInteractor in interactable.interactorsSelecting)
             {
                 if (selectingInteractor == interactor)

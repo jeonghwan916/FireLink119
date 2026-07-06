@@ -5006,7 +5006,7 @@ GameObject:
   - component: {fileID: 574903802889333946}
   - component: {fileID: 4247424230925574230}
   m_Layer: 0
-  m_Name: Visuals
+  m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5251,7 +5251,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 4247424230925574230}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -5386,8 +5387,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   _safetyPinSocket: {fileID: 2844583868430011803}
-  _safetyPinVisuals: []
   _grabAuthorityRequestTimeout: 0.75
+  _logDebug: 0
 --- !u!82 &4251285605183337783
 AudioSource:
   m_ObjectHideFlags: 0
@@ -5537,6 +5538,7 @@ GameObject:
   - component: {fileID: 374569848612368502}
   - component: {fileID: 939489389942801751}
   - component: {fileID: 5585091676269624719}
+  - component: {fileID: 7680878323415998731}
   m_Layer: 0
   m_Name: SafetyPin
   m_TagString: Untagged
@@ -5678,11 +5680,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 1742023147635157970}
   m_InteractionLayers:
     m_Bits: 2
   m_DistanceCalculationMode: 1
-  m_SelectMode: 0
+  m_SelectMode: 1
   m_FocusMode: 1
   m_CustomReticle: {fileID: 0}
   m_AllowGazeInteraction: 0
@@ -5808,8 +5811,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Extinguisher.SafetyPinGrabCondition
   _extinguisher: {fileID: 2722525320102824734}
-  _allowSocketSelectionBeforePulled: 1
-  _blockSocketSelectionAfterPulled: 1
+--- !u!114 &7680878323415998731
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7950569006448082556}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 933ffdf650062d94d8eac98cc0f491e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Extinguisher.SafetyPinPullController
+  _safetyPin: {fileID: 939489389942801751}
+  _extinguisher: {fileID: 2722525320102824734}
+  _socket: {fileID: 2844583868430011803}
 --- !u!1 &8763219043645971519
 GameObject:
   m_ObjectHideFlags: 0
@@ -10747,7 +10763,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9176100453427782267}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f98b10ebb407b2a478fcfd536383cc77, type: 3}
   m_Name: 
@@ -10755,7 +10771,6 @@ MonoBehaviour:
   _socket: {fileID: 2844583868430011803}
   _safetyPin: {fileID: 939489389942801751}
   _restoreFrameCount: 2
-  _detachFromExtinguisherOnHandGrab: 1
 --- !u!1001 &7375403521586786452
 PrefabInstance:
   m_ObjectHideFlags: 0

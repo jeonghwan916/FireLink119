@@ -5,7 +5,7 @@ using UnityEngine;
 namespace FireLink119.Fire
 {
     [RequireComponent(typeof(NetworkObject))]
-    public class FireObject : NetworkBehaviour
+    public class FireObject : NetworkBehaviour, IStateAuthorityChanged
     {
         private struct ParticleInitialState
         {
@@ -24,6 +24,12 @@ namespace FireLink119.Fire
         [SerializeField] private bool _disableCollidersWhenExtinguished = true;
         [SerializeField] private Collider[] _fireColliders;
 
+        [Header("Authority")]
+        [SerializeField] private float _masterAuthorityRequestInterval = 1f;
+
+        [Header("Debug")]
+        [SerializeField] private bool _logDebug;
+
         [Networked] private float ExtinguishProgress { get; set; }
         [Networked] private int CurrentStage { get; set; }
         [Networked] private NetworkBool IsExtinguished { get; set; }
@@ -37,6 +43,7 @@ namespace FireLink119.Fire
         private int _lastRenderedStage = -1;
         private bool _lastRenderedExtinguished;
         private bool _hasRaisedExtinguishedEvent;
+        private float _lastMasterAuthorityRequestTime = float.NegativeInfinity;
 
         private void Awake()
         {
@@ -88,6 +95,22 @@ namespace FireLink119.Fire
             }
 
             ApplyNetworkState(force: true);
+            LogDebug($"Spawned. local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, isMasterClient={Runner.IsSharedModeMasterClient}");
+        }
+
+        public void StateAuthorityChanged()
+        {
+            LogDebug($"StateAuthorityChanged. local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, isMasterClient={Runner.IsSharedModeMasterClient}");
+        }
+
+        public override void FixedUpdateNetwork()
+        {
+            if (Object == null || Runner == null)
+            {
+                return;
+            }
+
+            EnsureMasterClientAuthority();
         }
 
         public override void Render()
@@ -97,11 +120,13 @@ namespace FireLink119.Fire
 
         public void TakeExtinguish(float deltaTime)
         {
-            if (!HasStateAuthority || IsExtinguished || deltaTime <= 0f)
+            if (!CanApplyExtinguish(deltaTime))
             {
                 return;
             }
 
+            float previousProgress = ExtinguishProgress;
+            int previousStage = CurrentStage;
             float duration = Mathf.Max(_extinguishDuration, 0.01f);
             int stageCount = Mathf.Max(_extinguishStageCount, 1);
 
@@ -116,6 +141,86 @@ namespace FireLink119.Fire
                 CurrentStage = stageCount;
                 IsExtinguished = true;
             }
+
+            LogDebug($"TakeExtinguish applied. local={Runner.LocalPlayer}, deltaTime={deltaTime:0.000}, progress={previousProgress:0.000}->{ExtinguishProgress:0.000}, stage={previousStage}->{CurrentStage}, isExtinguished={IsExtinguished}");
+        }
+
+        public void RequestExtinguish(float deltaTime)
+        {
+            if (Runner == null || Object == null)
+            {
+                return;
+            }
+
+            if (HasStateAuthority)
+            {
+                TakeExtinguish(deltaTime);
+                return;
+            }
+
+            RPC_RequestExtinguish(deltaTime);
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestExtinguish(float deltaTime, RpcInfo info = default)
+        {
+            TakeExtinguish(deltaTime);
+        }
+
+        private void EnsureMasterClientAuthority()
+        {
+            if (Runner.IsSharedModeMasterClient)
+            {
+                RequestAuthorityIfNeeded();
+                return;
+            }
+
+            ReleaseAuthorityIfHeldByNonMaster();
+        }
+
+        private void RequestAuthorityIfNeeded()
+        {
+            if (HasStateAuthority ||
+                Time.time - _lastMasterAuthorityRequestTime < _masterAuthorityRequestInterval)
+            {
+                return;
+            }
+
+            _lastMasterAuthorityRequestTime = Time.time;
+            Runner.RequestStateAuthority(Object.Id);
+            LogDebug($"MasterClient requested StateAuthority. local={Runner.LocalPlayer}, currentStateAuthority={Object.StateAuthority}");
+        }
+
+        private void ReleaseAuthorityIfHeldByNonMaster()
+        {
+            if (!HasStateAuthority)
+            {
+                return;
+            }
+
+            Runner.ReleaseStateAuthority(Object.Id);
+            LogDebug($"Non-master released StateAuthority. local={Runner.LocalPlayer}");
+        }
+
+        private bool CanApplyExtinguish(float deltaTime)
+        {
+            if (Runner == null || Object == null)
+            {
+                return false;
+            }
+
+            if (!HasStateAuthority)
+            {
+                LogDebug($"TakeExtinguish blocked by authority. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, deltaTime={deltaTime:0.000}");
+                return false;
+            }
+
+            if (IsExtinguished || deltaTime <= 0f)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private void ApplyNetworkState(bool force)
@@ -226,6 +331,14 @@ namespace FireLink119.Fire
             }
 
             return curve;
+        }
+
+        private void LogDebug(string message)
+        {
+            if (_logDebug)
+            {
+                Debug.Log($"[FireObject] {message}", this);
+            }
         }
     }
 }

@@ -23,10 +23,12 @@ namespace FireLink119.Extinguisher
 
         [Header("Safety Pin")]
         [SerializeField] private XRSocketInteractor _safetyPinSocket;
-        [SerializeField] private GameObject[] _safetyPinVisuals;
 
         [Header("Authority")]
         [SerializeField] private float _grabAuthorityRequestTimeout = 0.75f;
+
+        [Header("Debug")]
+        [SerializeField] private bool _logDebug;
 
         [Networked] private NetworkBool IsHeld { get; set; }
         [Networked] private PlayerRef HeldBy { get; set; }
@@ -47,7 +49,6 @@ namespace FireLink119.Extinguisher
         private bool _pendingGrab;
         private float _pendingGrabStartedTime;
         private bool _lastRenderedFiring;
-        private bool _lastRenderedSafetyPinPulled;
 
         private void Awake()
         {
@@ -91,8 +92,6 @@ namespace FireLink119.Extinguisher
         {
             _isSpawned = true;
 
-            Debug.Log($"[Extinguisher] Spawned. object={name}, local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, isMasterClient={Runner.IsSharedModeMasterClient}");
-
             if (HasStateAuthority)
             {
                 IsHeld = false;
@@ -103,12 +102,11 @@ namespace FireLink119.Extinguisher
             }
 
             ApplyNetworkState(force: true);
+            LogDebug($"Spawned. local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, isMasterClient={Runner.IsSharedModeMasterClient}");
         }
 
         public override void Despawned(NetworkRunner runner, bool hasState)
         {
-            Debug.Log($"[Extinguisher] Despawned. object={name}, hasState={hasState}");
-
             _isSpawned = false;
             _pendingGrab = false;
             _isLocallySelected = false;
@@ -116,7 +114,7 @@ namespace FireLink119.Extinguisher
 
         public void StateAuthorityChanged()
         {
-            Debug.Log($"[Extinguisher] StateAuthorityChanged. object={name}, local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, pendingGrab={_pendingGrab}, isLocallySelected={_isLocallySelected}, isHeld={IsHeld}, heldBy={HeldBy}");
+            LogDebug($"StateAuthorityChanged. local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, pendingGrab={_pendingGrab}, isHeld={IsHeld}, heldBy={HeldBy}");
 
             if (HasStateAuthority && _pendingGrab)
             {
@@ -139,7 +137,7 @@ namespace FireLink119.Extinguisher
                 RecoverAbandonedHold();
             }
 
-            if (Runner.IsSharedModeMasterClient && IsFiring)
+            if (HasStateAuthority && IsFiring)
             {
                 TryExtinguishFire();
             }
@@ -155,16 +153,19 @@ namespace FireLink119.Extinguisher
             ApplyNetworkState(force: false);
         }
 
+        public void RequestPullSafetyPin()
+        {
+            TryPullSafetyPin();
+        }
+
         private void OnGrabbed(SelectEnterEventArgs args)
         {
             _isLocallySelected = true;
-            Debug.Log($"[Extinguisher] OnGrabbed. object={name}, local={Runner.LocalPlayer}, interactor={args.interactorObject.transform.name}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}");
             RequestGrabAuthority();
         }
 
         private void OnReleased(SelectExitEventArgs args)
         {
-            Debug.Log($"[Extinguisher] OnReleased. object={name}, local={Runner.LocalPlayer}, interactor={args.interactorObject.transform.name}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}, pendingGrab={_pendingGrab}");
             _isLocallySelected = false;
             _pendingGrab = false;
             ReleaseIfHeldByLocalPlayer();
@@ -172,10 +173,7 @@ namespace FireLink119.Extinguisher
 
         private void OnSafetyPinSocketExited(SelectExitEventArgs args)
         {
-            if (IsHeldByLocalPlayer && HasStateAuthority)
-            {
-                IsSafetyPinPulled = true;
-            }
+            TryPullSafetyPin();
         }
 
         private void OnFireStart(ActivateEventArgs args)
@@ -190,16 +188,20 @@ namespace FireLink119.Extinguisher
 
         private void RequestGrabAuthority()
         {
-            if (!IsNetworkReady || IsHeldByOtherPlayer())
+            if (!IsNetworkReady)
             {
-                Debug.Log($"[Extinguisher] RequestGrabAuthority blocked. object={name}, isNetworkReady={IsNetworkReady}, local={Runner?.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object?.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}");
+                LogDebug("RequestGrabAuthority blocked. network is not ready.");
+                return;
+            }
+
+            if (IsHeldByOtherPlayer())
+            {
+                LogDebug($"RequestGrabAuthority blocked. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}");
                 return;
             }
 
             _pendingGrab = true;
             _pendingGrabStartedTime = Time.time;
-
-            Debug.Log($"[Extinguisher] RequestGrabAuthority started. object={name}, local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, objectId={Object.Id}, timeout={_grabAuthorityRequestTimeout}");
 
             if (HasStateAuthority)
             {
@@ -209,7 +211,7 @@ namespace FireLink119.Extinguisher
             }
 
             Runner.RequestStateAuthority(Object.Id);
-            Debug.Log($"[Extinguisher] RequestStateAuthority called. object={name}, local={Runner.LocalPlayer}, objectId={Object.Id}, currentStateAuthority={Object.StateAuthority}");
+            LogDebug($"RequestStateAuthority called. local={Runner.LocalPlayer}, objectId={Object.Id}, currentStateAuthority={Object.StateAuthority}");
         }
 
         private void ClearInvalidPendingGrab()
@@ -223,16 +225,22 @@ namespace FireLink119.Extinguisher
                 IsHeldByOtherPlayer() ||
                 Time.time - _pendingGrabStartedTime >= _grabAuthorityRequestTimeout)
             {
-                Debug.Log($"[Extinguisher] Pending grab cleared. object={name}, local={Runner.LocalPlayer}, isLocallySelected={_isLocallySelected}, isHeldByOther={IsHeldByOtherPlayer()}, elapsed={Time.time - _pendingGrabStartedTime:0.000}, timeout={_grabAuthorityRequestTimeout}, isHeld={IsHeld}, heldBy={HeldBy}, stateAuthority={Object.StateAuthority}");
+                LogDebug($"Pending grab cleared. local={Runner.LocalPlayer}, isLocallySelected={_isLocallySelected}, isHeldByOther={IsHeldByOtherPlayer()}, isHeld={IsHeld}, heldBy={HeldBy}, stateAuthority={Object.StateAuthority}");
                 _pendingGrab = false;
             }
         }
 
         private void ReleaseIfHeldByLocalPlayer()
         {
-            if (!IsNetworkReady || !HasStateAuthority || HeldBy != Runner.LocalPlayer)
+            if (!IsNetworkReady)
             {
-                Debug.Log($"[Extinguisher] ReleaseIfHeldByLocalPlayer skipped. object={name}, isNetworkReady={IsNetworkReady}, local={Runner?.LocalPlayer}, hasStateAuthority={HasStateAuthority}, heldBy={HeldBy}, stateAuthority={Object?.StateAuthority}");
+                LogDebug("Release skipped. network is not ready.");
+                return;
+            }
+
+            if (!HasStateAuthority || HeldBy != Runner.LocalPlayer)
+            {
+                LogDebug($"Release skipped. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, heldBy={HeldBy}, stateAuthority={Object.StateAuthority}");
                 return;
             }
 
@@ -243,13 +251,12 @@ namespace FireLink119.Extinguisher
         {
             if (IsHeld && HeldBy != player)
             {
-                Debug.Log($"[Extinguisher] SetGrabbed blocked. object={name}, requestedPlayer={player}, currentHeldBy={HeldBy}, local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}");
+                LogDebug($"SetGrabbed blocked. requestedPlayer={player}, currentHeldBy={HeldBy}, local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}");
                 return;
             }
 
             IsHeld = true;
             HeldBy = player;
-            Debug.Log($"[Extinguisher] SetGrabbed applied. object={name}, heldBy={HeldBy}, local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}");
         }
 
         private void SetReleased()
@@ -258,7 +265,6 @@ namespace FireLink119.Extinguisher
             HeldBy = PlayerRef.None;
             IsFiring = false;
             EnsureReleasedPhysicsState();
-            Debug.Log($"[Extinguisher] SetReleased applied. object={name}, local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}");
         }
 
         private void EnsureReleasedPhysicsState()
@@ -268,35 +274,67 @@ namespace FireLink119.Extinguisher
             _rigidbody.WakeUp();
         }
 
-        private void SetFiring(bool firing)
+        private void TryPullSafetyPin()
         {
+            if (!IsNetworkReady)
+            {
+                LogDebug("TryPullSafetyPin skipped. network is not ready.");
+                return;
+            }
+
+            LogDebug($"TryPullSafetyPin. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}, isHeldByLocal={IsHeldByLocalPlayer}, isSafetyPinPulled={IsSafetyPinPulled}");
+
             if (!IsHeldByLocalPlayer || !HasStateAuthority)
             {
                 return;
             }
 
+            IsSafetyPinPulled = true;
+        }
+
+        private void SetFiring(bool firing)
+        {
+            if (!IsNetworkReady)
+            {
+                LogDebug($"SetFiring skipped. requested={firing}, network is not ready.");
+                return;
+            }
+
+            if (!IsHeldByLocalPlayer || !HasStateAuthority)
+            {
+                LogDebug($"SetFiring blocked. requested={firing}, local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, isHeldByLocal={IsHeldByLocalPlayer}, isSafetyPinPulled={IsSafetyPinPulled}, currentIsFiring={IsFiring}");
+                return;
+            }
+
             IsFiring = firing && IsSafetyPinPulled;
+
+            LogDebug($"SetFiring applied. requested={firing}, final={IsFiring}, local={Runner.LocalPlayer}, isSafetyPinPulled={IsSafetyPinPulled}");
         }
 
         private void TryExtinguishFire()
         {
             Transform rayOrigin = GetRayOrigin();
+            Vector3 rayOriginPosition = rayOrigin.position;
+            Vector3 rayDirection = rayOrigin.forward;
 
             if (!Physics.Raycast(
-                    rayOrigin.position,
-                    rayOrigin.forward,
+                    rayOriginPosition,
+                    rayDirection,
                     out RaycastHit hit,
                     _range,
                     _fireLayer,
                     QueryTriggerInteraction.Collide))
             {
+                LogDebug($"TryExtinguishFire miss. isMasterClient={Runner.IsSharedModeMasterClient}, origin={rayOriginPosition}, forward={rayDirection}");
                 return;
             }
 
             FireObject fire = hit.collider.GetComponentInParent<FireObject>();
+            LogDebug($"TryExtinguishFire hit. isMasterClient={Runner.IsSharedModeMasterClient}, collider={hit.collider.name}, fire={fire?.name}");
+
             if (fire != null)
             {
-                fire.TakeExtinguish(Runner.DeltaTime);
+                fire.RequestExtinguish(Runner.DeltaTime);
             }
         }
 
@@ -335,9 +373,7 @@ namespace FireLink119.Extinguisher
                 _safetyPinSocket.socketActive = !IsSafetyPinPulled;
             }
 
-            ApplySafetyPinVisuals(IsSafetyPinPulled, force);
-
-            if (!IsHeldByLocalPlayer)
+            if (_grabInteractable != null && !IsHeldByLocalPlayer)
             {
                 _grabInteractable.enabled = !IsHeldByOtherPlayer();
             }
@@ -380,27 +416,17 @@ namespace FireLink119.Extinguisher
             }
         }
 
-        private void ApplySafetyPinVisuals(bool pulled, bool force)
-        {
-            if (!force && _lastRenderedSafetyPinPulled == pulled)
-            {
-                return;
-            }
-
-            _lastRenderedSafetyPinPulled = pulled;
-
-            foreach (GameObject visual in _safetyPinVisuals)
-            {
-                if (visual != null)
-                {
-                    visual.SetActive(!pulled);
-                }
-            }
-        }
-
         private bool IsHeldByOtherPlayer()
         {
             return IsHeld && HeldBy != Runner.LocalPlayer;
+        }
+
+        private void LogDebug(string message)
+        {
+            if (_logDebug)
+            {
+                Debug.Log($"[Extinguisher] {message}", this);
+            }
         }
     }
 }

@@ -145,6 +145,28 @@ namespace FireLink119.Fire
             LogDebug($"TakeExtinguish applied. local={Runner.LocalPlayer}, deltaTime={deltaTime:0.000}, progress={previousProgress:0.000}->{ExtinguishProgress:0.000}, stage={previousStage}->{CurrentStage}, isExtinguished={IsExtinguished}");
         }
 
+        public void RequestExtinguish(float deltaTime)
+        {
+            if (Runner == null || Object == null)
+            {
+                return;
+            }
+
+            if (HasStateAuthority)
+            {
+                TakeExtinguish(deltaTime);
+                return;
+            }
+
+            RPC_RequestExtinguish(deltaTime);
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestExtinguish(float deltaTime, RpcInfo info = default)
+        {
+            TakeExtinguish(deltaTime);
+        }
+
         private void EnsureMasterClientAuthority()
         {
             if (Runner.IsSharedModeMasterClient)
@@ -187,9 +209,9 @@ namespace FireLink119.Fire
                 return false;
             }
 
-            if (!Runner.IsSharedModeMasterClient || !HasStateAuthority)
+            if (!HasStateAuthority)
             {
-                LogDebug($"TakeExtinguish blocked by authority. local={Runner.LocalPlayer}, isMasterClient={Runner.IsSharedModeMasterClient}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, deltaTime={deltaTime:0.000}");
+                LogDebug($"TakeExtinguish blocked by authority. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, deltaTime={deltaTime:0.000}");
                 return false;
             }
 

@@ -12,7 +12,6 @@ namespace FireLink119.Extinguisher
         [SerializeField] private XRSocketInteractor _socket;
         [SerializeField] private XRGrabInteractable _safetyPin;
         [SerializeField] private int _restoreFrameCount = 2;
-        [SerializeField] private bool _detachFromExtinguisherOnHandGrab = true;
 
         private Rigidbody _safetyPinRigidbody;
 
@@ -35,12 +34,6 @@ namespace FireLink119.Extinguisher
             {
                 _socket.selectEntered.AddListener(OnSocketEntered);
             }
-
-            if (_safetyPin != null)
-            {
-                _safetyPin.selectEntered.AddListener(OnSafetyPinSelected);
-                _safetyPin.selectExited.AddListener(OnSafetyPinDeselected);
-            }
         }
 
         private void OnDisable()
@@ -48,12 +41,6 @@ namespace FireLink119.Extinguisher
             if (_socket != null)
             {
                 _socket.selectEntered.RemoveListener(OnSocketEntered);
-            }
-
-            if (_safetyPin != null)
-            {
-                _safetyPin.selectEntered.RemoveListener(OnSafetyPinSelected);
-                _safetyPin.selectExited.RemoveListener(OnSafetyPinDeselected);
             }
         }
 
@@ -70,16 +57,12 @@ namespace FireLink119.Extinguisher
                 yield return null;
             }
 
-            for (int i = 0; i < frames; i++)
-            {
-                RestoreSafetyPinToSocket();
-                yield return null;
-            }
+            RestoreSafetyPinToSocket();
         }
 
         private void RestoreSafetyPinToSocket()
         {
-            if (_socket == null || _safetyPin == null || _socket.hasSelection)
+            if (_socket == null || _safetyPin == null)
             {
                 return;
             }
@@ -95,51 +78,9 @@ namespace FireLink119.Extinguisher
 
         private void OnSocketEntered(SelectEnterEventArgs args)
         {
-            if (args.interactableObject.transform == _safetyPin.transform)
+            if (_safetyPin != null && args.interactableObject.transform == _safetyPin.transform)
             {
                 SetSafetyPinKinematic();
-            }
-        }
-
-        private void OnSafetyPinSelected(SelectEnterEventArgs args)
-        {
-            if (args.interactorObject is XRSocketInteractor)
-            {
-                SetSafetyPinKinematic();
-                return;
-            }
-
-            if (_detachFromExtinguisherOnHandGrab)
-            {
-                _safetyPin.transform.SetParent(null, true);
-            }
-
-            SetSafetyPinHeld();
-        }
-
-        private void OnSafetyPinDeselected(SelectExitEventArgs args)
-        {
-            if (args.interactorObject is XRSocketInteractor)
-            {
-                return;
-            }
-
-            if (_detachFromExtinguisherOnHandGrab)
-            {
-                _safetyPin.transform.SetParent(null, true);
-                StartCoroutine(DetachAfterSelectionEnds());
-            }
-
-            SetSafetyPinDynamic();
-        }
-
-        private IEnumerator DetachAfterSelectionEnds()
-        {
-            yield return null;
-
-            if (_safetyPin != null)
-            {
-                _safetyPin.transform.SetParent(null, true);
             }
         }
 
@@ -154,32 +95,6 @@ namespace FireLink119.Extinguisher
             _safetyPinRigidbody.angularVelocity = Vector3.zero;
             _safetyPinRigidbody.useGravity = false;
             _safetyPinRigidbody.isKinematic = true;
-        }
-
-        private void SetSafetyPinDynamic()
-        {
-            if (_safetyPinRigidbody == null)
-            {
-                return;
-            }
-
-            _safetyPinRigidbody.isKinematic = false;
-            _safetyPinRigidbody.useGravity = true;
-            _safetyPinRigidbody.WakeUp();
-        }
-
-        private void SetSafetyPinHeld()
-        {
-            if (_safetyPinRigidbody == null)
-            {
-                return;
-            }
-
-            _safetyPinRigidbody.linearVelocity = Vector3.zero;
-            _safetyPinRigidbody.angularVelocity = Vector3.zero;
-            _safetyPinRigidbody.isKinematic = false;
-            _safetyPinRigidbody.useGravity = false;
-            _safetyPinRigidbody.WakeUp();
         }
     }
 }

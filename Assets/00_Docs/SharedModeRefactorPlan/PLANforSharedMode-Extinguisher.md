@@ -1,3 +1,6 @@
+# PLAN for Shared Mode - Extinguisher.cs
+
+```csharp
 using FireLink119.Fire;
 using Fusion;
 using UnityEngine;
@@ -23,9 +26,6 @@ namespace FireLink119.Extinguisher
         [SerializeField] private XRSocketInteractor _safetyPinSocket;
         [SerializeField] private GameObject[] _safetyPinVisuals;
 
-        [Header("Authority")]
-        [SerializeField] private float _grabAuthorityRequestTimeout = 0.75f;
-
         [Networked] private NetworkBool IsHeld { get; set; }
         [Networked] private PlayerRef HeldBy { get; set; }
         [Networked] private NetworkBool IsSafetyPinPulled { get; set; }
@@ -46,7 +46,6 @@ namespace FireLink119.Extinguisher
         private bool _isSpawned;
         private bool _isLocallySelected;
         private bool _pendingGrab;
-        private float _pendingGrabStartedTime;
         private bool _lastRenderedFiring;
         private bool _lastRenderedSafetyPinPulled;
 
@@ -126,8 +125,6 @@ namespace FireLink119.Extinguisher
                 return;
             }
 
-            ClearInvalidPendingGrab();
-
             if (HasStateAuthority)
             {
                 RecoverAbandonedHold();
@@ -198,7 +195,6 @@ namespace FireLink119.Extinguisher
             }
 
             _pendingGrab = true;
-            _pendingGrabStartedTime = Time.time;
 
             if (HasStateAuthority)
             {
@@ -208,21 +204,6 @@ namespace FireLink119.Extinguisher
             }
 
             Runner.RequestStateAuthority(Object.Id);
-        }
-
-        private void ClearInvalidPendingGrab()
-        {
-            if (!_pendingGrab)
-            {
-                return;
-            }
-
-            if (!_isLocallySelected ||
-                IsHeldByOtherPlayer() ||
-                Time.time - _pendingGrabStartedTime >= _grabAuthorityRequestTimeout)
-            {
-                _pendingGrab = false;
-            }
         }
 
         private void ReleaseIfHeldByLocalPlayer()
@@ -402,3 +383,15 @@ namespace FireLink119.Extinguisher
         }
     }
 }
+```
+
+## Self Review
+
+- 잡기 시작 시 `RpcSources.All -> StateAuthority` 요청을 쓰지 않고 `Runner.RequestStateAuthority(Object.Id)`만 사용한다. Shared Mode에서 소화기 권위는 실제 잡은 플레이어가 가져야 하기 때문이다.
+- `StateAuthorityChanged()`에서 잡기 확정을 처리하므로 권위 요청 성공 전 상태를 먼저 쓰지 않는다.
+- pose, ray origin, 안전핀, 분사 상태는 `HasStateAuthority`인 잡은 플레이어만 `[Networked]` 값으로 기록한다.
+- 화재 진화 판정은 `Runner.IsSharedModeMasterClient` 피어만 수행한다. 잡은 플레이어가 Master Client가 아니어도 Master Client가 복제된 ray pose와 `IsFiring`을 읽고 `FireObject.TakeExtinguish()`를 호출한다.
+- `FireObject.TakeExtinguish()`는 화재 객체의 `StateAuthority`에서만 성공하므로, 화재 객체가 `Is Master Client`로 설정되어 있어야 한다.
+- 놓을 때 `SetReleased()` 후 `Runner.ReleaseStateAuthority(Object.Id)`를 호출해 계획의 Master Client 회수 방향과 맞춘다.
+- 플레이어 이탈로 잡힌 상태가 남는 경우를 줄이기 위해 Master Client가 권위를 가진 상태에서 `HeldBy`가 active player가 아니면 release한다.
+- 디버그 로그, `InputAuthority`, `runner.IsServer`, Host/Client 역할 분기, 불필요한 pose RPC는 제거했다.

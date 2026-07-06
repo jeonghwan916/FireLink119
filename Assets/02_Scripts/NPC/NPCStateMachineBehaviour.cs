@@ -12,12 +12,10 @@ namespace FireLink119.NPC
             }
 
             NPCController npcController = animator.GetComponentInParent<NPCController>();
-            if (npcController == null)
+            if (npcController != null && npcController.HasStateAuthority)
             {
-                return;
+                npcController.NotifyOpeningDoorAnimationFinished();
             }
-
-            npcController.NotifyOpeningDoorAnimationFinished();
         }
     }
 }

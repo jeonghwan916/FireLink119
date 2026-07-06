@@ -1,3 +1,17 @@
+# PLAN for Shared Mode - NPCController.cs
+
+## Assumptions
+
+- `NPCController`가 붙은 `NetworkObject`는 Shared Mode에서 `Is Master Client`로 설정한다.
+- NPC는 월드 규칙 객체이므로 `Allow State Authority Override`를 켜지 않는다.
+- NPC 이동, 사망, 문 열기, 목적지 전환, 대사 이벤트 번호 증가는 `StateAuthority`, 즉 Master Client만 확정한다.
+- 플레이어가 직접 요청할 수 있는 동작은 `RequestFollowPlayer(PlayerRef)`뿐이며, RPC 송신자와 요청 대상 `PlayerRef`가 같을 때만 허용한다.
+- 목적지/사망/대사/웅크리기 요청은 `NPCDestinationSettingTrigger`, `NPCDeadTrigger`, 애니메이션 이벤트처럼 Master Client 권위 객체 또는 NPC 권위 객체에서 직접 호출하는 경로만 유효하다.
+- `Runner.GetPlayerObject(player)`가 Shared Mode 아바타 스폰 구조에서 모든 피어에 안정적으로 세팅된다는 전제가 필요하다. 이 전제가 깨지면 NPC 추적은 대상 해석에 실패한다.
+
+## Redesigned NPCController.cs
+
+```csharp
 using Fusion;
 using FireLink119.Network;
 using UnityEngine;
@@ -925,3 +939,26 @@ namespace FireLink119.NPC
         }
     }
 }
+```
+
+## Self Review
+
+- `NavMeshAgent`는 `HasStateAuthority`일 때만 활성화된다. `ConfigureAgentForAuthority()`를 `FixedUpdateNetwork()`와 `Render()`에서 반복 확인해 Master Client 변경 후에도 새 권위자가 에이전트를 켤 수 있게 했다.
+- 권위 이전 시 `_currentTarget` 같은 로컬 참조가 사라지는 문제를 막기 위해 `TargetMode`, `FollowPlayer`, `CurrentDoorId`, `CurrentDestinationId`를 `[Networked]`로 유지하고 권위자가 매 tick 대상 Transform을 재해석한다.
+- 플레이어 추적 RPC는 `info.Source == requestedPlayer`일 때만 통과한다. 다른 클라이언트가 남의 `PlayerRef`로 NPC를 끌고 가는 경로를 막는다.
+- 목적지, 문 경유, 웅크리기, 사망, 대사 RPC는 원격 플레이어 요청을 받지 않는다. 현재 설계에서는 Master Client 권위 트리거가 직접 호출해야 한다.
+- `InputAuthority`, `HasInputAuthority`, `runner.IsServer`, `PlayerType` 기반 런타임 로직을 사용하지 않는다.
+- `NetworkDoor.Open()`은 문도 Master Client 권위 객체라는 전제에서만 성공한다. 문 권위 설정이 다르면 NPC 문 열기가 no-op이므로 `NetworkDoor` prefab/scene 설정 검증이 필요하다.
+- 디버그 로그, legacy Transform 경고, 과도한 방어 코드는 제거했다. 단, 현재 `NPCDestinationSettingTrigger`의 legacy `_doorTarget`/`_destination` 경로는 후속 리팩토링에서 ID 기반 요청만 남겨야 이 코드와 완전히 맞는다.
+- 단독으로 실제 `NPCController.cs`에 적용하려면 현재 에디터 확장 `NPCControllerEditor`의 `StartFollowingPlayer(PlayerType)` 호출과 `NPCDestinationSettingTrigger`의 `SetTarget*` legacy 호출을 먼저 제거하거나 후속 호환 메서드를 임시로 추가해야 한다.
+
+## Verification Checklist
+
+- NPC `NetworkObject`가 `Is Master Client`이고 `Allow State Authority Override`가 꺼져 있는지 확인한다.
+- Master Client에서만 `NavMeshAgent.enabled == true`가 되는지 확인한다.
+- Master Client 변경 후 NPC가 기존 `TargetMode`와 ID를 기준으로 이동을 계속하는지 확인한다.
+- 로컬 플레이어가 NPC 어깨를 잡으면 자기 `PlayerRef`로만 추적 요청이 승인되는지 확인한다.
+- 임의 클라이언트가 다른 플레이어 `PlayerRef`로 `RequestFollowPlayer()`를 호출해도 무시되는지 확인한다.
+- 목적지/사망 트리거는 Master Client 권위에서 한 번만 상태를 확정하는지 확인한다.
+- NPC가 문에 도착하면 `NetworkDoor.Open()`이 Master Client 권위 문에서 한 번만 실행되는지 확인한다.
+- 사망/대사 이벤트가 `DeathEventId`, `DialogueEventId` 증가마다 각 클라이언트에서 한 번만 재생되는지 확인한다.

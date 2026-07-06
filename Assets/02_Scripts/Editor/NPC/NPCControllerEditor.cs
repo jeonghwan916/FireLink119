@@ -11,36 +11,27 @@ namespace FireLink119.NPC
             DrawDefaultInspector();
 
             NPCController npcController = (NPCController)target;
+            bool canEditRuntimeState = EditorApplication.isPlaying && npcController.HasStateAuthority;
 
-            if (GUILayout.Button("Set Target To Player1"))
-            {
-                npcController.StartFollowingPlayer(PlayerType.Player1);
-                EditorUtility.SetDirty(npcController);
-            }
-        
-            if (GUILayout.Button("Set Target To Player2"))
-            {
-                npcController.StartFollowingPlayer(PlayerType.Player2);
-                EditorUtility.SetDirty(npcController);
-            }
+            EditorGUILayout.Space();
+            EditorGUI.BeginDisabledGroup(!canEditRuntimeState);
 
             if (GUILayout.Button("Toggle Crouch"))
             {
                 npcController.ToggleCrouch();
-                EditorUtility.SetDirty(npcController);
             }
         
             if (GUILayout.Button("Dead By Explosion"))
             {
                 npcController.DieByExplosion();
-                EditorUtility.SetDirty(npcController);
             }
         
             if (GUILayout.Button("Dead By Smoke"))
             {
                 npcController.DieBySmoke();
-                EditorUtility.SetDirty(npcController);
             }
+
+            EditorGUI.EndDisabledGroup();
         }
     }
 }

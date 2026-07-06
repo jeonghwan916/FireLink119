@@ -1,31 +1,45 @@
 using FireLink119.Player;
 using UnityEngine;
 
-public class SmokeArea : MonoBehaviour
+namespace FireLink119.Smoke
 {
-    private void OnTriggerEnter(Collider other)
+    [RequireComponent(typeof(Collider))]
+    public class SmokeArea : MonoBehaviour
     {
-        if (other.CompareTag("Player"))
-        {
-            PlayerCough playerCough = other.GetComponentInParent<PlayerCough>();
+        [SerializeField] private string _playerTag = "Player";
 
+        private void Awake()
+        {
+            Collider areaCollider = GetComponent<Collider>();
+            areaCollider.isTrigger = true;
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            PlayerCough playerCough = ResolvePlayerCough(other);
             if (playerCough != null)
             {
                 playerCough.StartCough();
             }
         }
-    }
 
-    private void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
+        private void OnTriggerExit(Collider other)
         {
-            PlayerCough playerCough = other.GetComponent<PlayerCough>();
-
+            PlayerCough playerCough = ResolvePlayerCough(other);
             if (playerCough != null)
             {
                 playerCough.StopCough();
             }
+        }
+
+        private PlayerCough ResolvePlayerCough(Collider other)
+        {
+            if (!other.CompareTag(_playerTag))
+            {
+                return null;
+            }
+
+            return other.GetComponentInParent<PlayerCough>();
         }
     }
 }

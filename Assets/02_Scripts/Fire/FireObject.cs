@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace FireLink119.Fire
 {
+    [RequireComponent(typeof(NetworkObject))]
     public class FireObject : NetworkBehaviour
     {
         private struct ParticleInitialState
@@ -17,7 +18,7 @@ namespace FireLink119.Fire
         [Header("Particle System")]
         [SerializeField] private ParticleSystem[] _fireParticles;
 
-        [Header("Extinguish : Stages")]
+        [Header("Extinguish")]
         [SerializeField] private float _extinguishDuration = 4f;
         [SerializeField] private int _extinguishStageCount = 4;
         [SerializeField] private bool _disableCollidersWhenExtinguished = true;
@@ -27,6 +28,7 @@ namespace FireLink119.Fire
         [Networked] private int CurrentStage { get; set; }
         [Networked] private NetworkBool IsExtinguished { get; set; }
 
+        public bool NetworkIsExtinguished => Object != null && IsExtinguished;
         public event Action OnExtinguished;
 
         private ParticleInitialState[] _particleInitialStates;
@@ -34,41 +36,39 @@ namespace FireLink119.Fire
         private float _initialVolume;
         private int _lastRenderedStage = -1;
         private bool _lastRenderedExtinguished;
+        private bool _hasRaisedExtinguishedEvent;
 
         private void Awake()
         {
             _audioSource = GetComponent<AudioSource>();
-            if (_audioSource != null)
-            {
-                _initialVolume = _audioSource.volume;
-            }
+            _initialVolume = _audioSource != null ? _audioSource.volume : 0f;
 
             if (_fireParticles == null || _fireParticles.Length == 0)
             {
                 _fireParticles = GetComponentsInChildren<ParticleSystem>();
             }
 
-            if (_fireColliders == null || _fireColliders.Length == 0)
+            if (_fireColliders == null)
             {
-                _fireColliders = GetComponentsInChildren<Collider>();
+                _fireColliders = Array.Empty<Collider>();
             }
 
             _particleInitialStates = new ParticleInitialState[_fireParticles.Length];
 
             for (int i = 0; i < _fireParticles.Length; i++)
             {
-                ParticleSystem ps = _fireParticles[i];
-                if (ps == null)
+                ParticleSystem particle = _fireParticles[i];
+                if (particle == null)
                 {
                     continue;
                 }
 
-                var emission = ps.emission;
-                var main = ps.main;
+                ParticleSystem.EmissionModule emission = particle.emission;
+                ParticleSystem.MainModule main = particle.main;
 
                 _particleInitialStates[i] = new ParticleInitialState
                 {
-                    Particle = ps,
+                    Particle = particle,
                     RateOverTime = emission.rateOverTime,
                     StartSize = main.startSize,
                     StartLifetime = main.startLifetime
@@ -78,6 +78,8 @@ namespace FireLink119.Fire
 
         public override void Spawned()
         {
+            _hasRaisedExtinguishedEvent = false;
+
             if (HasStateAuthority)
             {
                 ExtinguishProgress = 0f;
@@ -100,22 +102,18 @@ namespace FireLink119.Fire
                 return;
             }
 
-            ExtinguishProgress += deltaTime;
-
             float duration = Mathf.Max(_extinguishDuration, 0.01f);
             int stageCount = Mathf.Max(_extinguishStageCount, 1);
-            float secondsPerStage = duration / stageCount;
 
-            int nextStage = Mathf.FloorToInt(ExtinguishProgress / secondsPerStage);
-            nextStage = Mathf.Clamp(nextStage, 0, stageCount);
+            ExtinguishProgress = Mathf.Min(ExtinguishProgress + deltaTime, duration);
+            CurrentStage = Mathf.Clamp(
+                Mathf.FloorToInt((ExtinguishProgress / duration) * stageCount),
+                0,
+                stageCount);
 
-            if (nextStage != CurrentStage)
+            if (ExtinguishProgress >= duration)
             {
-                CurrentStage = nextStage;
-            }
-
-            if (CurrentStage >= stageCount)
-            {
+                CurrentStage = stageCount;
                 IsExtinguished = true;
             }
         }
@@ -134,12 +132,13 @@ namespace FireLink119.Fire
 
             int stageCount = Mathf.Max(_extinguishStageCount, 1);
             float intensity = IsExtinguished ? 0f : 1f - ((float)CurrentStage / stageCount);
-            ApplyIntensity(intensity);
+            ApplyIntensity(Mathf.Clamp01(intensity));
+            ApplyColliderState();
 
             if (IsExtinguished)
             {
                 ApplyExtinguishedVisuals();
-                OnExtinguished?.Invoke();
+                RaiseExtinguishedEventOnce();
             }
         }
 
@@ -152,10 +151,10 @@ namespace FireLink119.Fire
                     continue;
                 }
 
-                var emission = state.Particle.emission;
+                ParticleSystem.EmissionModule emission = state.Particle.emission;
                 emission.rateOverTime = ScaleCurve(state.RateOverTime, intensity);
 
-                var main = state.Particle.main;
+                ParticleSystem.MainModule main = state.Particle.main;
                 main.startSize = ScaleCurve(state.StartSize, intensity);
                 main.startLifetime = ScaleCurve(state.StartLifetime, intensity);
             }
@@ -168,31 +167,45 @@ namespace FireLink119.Fire
 
         private void ApplyExtinguishedVisuals()
         {
-            foreach (ParticleSystem ps in _fireParticles)
+            foreach (ParticleSystem particle in _fireParticles)
             {
-                if (ps == null)
+                if (particle != null)
                 {
-                    continue;
+                    particle.Stop(true, ParticleSystemStopBehavior.StopEmitting);
                 }
-
-                ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             }
 
             if (_audioSource != null)
             {
                 _audioSource.volume = 0f;
             }
+        }
 
-            if (_disableCollidersWhenExtinguished)
+        private void ApplyColliderState()
+        {
+            if (!_disableCollidersWhenExtinguished)
             {
-                foreach (Collider fireCollider in _fireColliders)
+                return;
+            }
+
+            foreach (Collider fireCollider in _fireColliders)
+            {
+                if (fireCollider != null)
                 {
-                    if (fireCollider != null)
-                    {
-                        fireCollider.enabled = false;
-                    }
+                    fireCollider.enabled = !IsExtinguished;
                 }
             }
+        }
+
+        private void RaiseExtinguishedEventOnce()
+        {
+            if (_hasRaisedExtinguishedEvent)
+            {
+                return;
+            }
+
+            _hasRaisedExtinguishedEvent = true;
+            OnExtinguished?.Invoke();
         }
 
         private ParticleSystem.MinMaxCurve ScaleCurve(ParticleSystem.MinMaxCurve curve, float scale)

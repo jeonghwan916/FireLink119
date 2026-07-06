@@ -34,8 +34,6 @@ namespace FireLink119.Extinguisher
         [Networked] private PlayerRef HeldBy { get; set; }
         [Networked] private NetworkBool IsSafetyPinPulled { get; set; }
         [Networked] private NetworkBool IsFiring { get; set; }
-        [Networked] private Vector3 NetworkedRayOriginPosition { get; set; }
-        [Networked] private Quaternion NetworkedRayOriginRotation { get; set; }
 
         public bool IsNetworkReady => _isSpawned && Object != null && Runner != null;
         public bool NetworkIsHeld => IsNetworkReady && IsHeld;
@@ -100,7 +98,6 @@ namespace FireLink119.Extinguisher
                 HeldBy = PlayerRef.None;
                 IsSafetyPinPulled = false;
                 IsFiring = false;
-                WriteRayOriginPose();
                 EnsureReleasedPhysicsState();
             }
 
@@ -138,10 +135,9 @@ namespace FireLink119.Extinguisher
             if (HasStateAuthority)
             {
                 RecoverAbandonedHold();
-                WriteRayOriginPose();
             }
 
-            if (Runner.IsSharedModeMasterClient && IsFiring)
+            if (HasStateAuthority && IsFiring)
             {
                 TryExtinguishFire();
             }
@@ -261,7 +257,6 @@ namespace FireLink119.Extinguisher
 
             IsHeld = true;
             HeldBy = player;
-            WriteRayOriginPose();
         }
 
         private void SetReleased()
@@ -269,7 +264,6 @@ namespace FireLink119.Extinguisher
             IsHeld = false;
             HeldBy = PlayerRef.None;
             IsFiring = false;
-            WriteRayOriginPose();
             EnsureReleasedPhysicsState();
         }
 
@@ -313,16 +307,8 @@ namespace FireLink119.Extinguisher
             }
 
             IsFiring = firing && IsSafetyPinPulled;
-            WriteRayOriginPose();
 
             LogDebug($"SetFiring applied. requested={firing}, final={IsFiring}, local={Runner.LocalPlayer}, isSafetyPinPulled={IsSafetyPinPulled}");
-        }
-
-        private void WriteRayOriginPose()
-        {
-            Transform rayOrigin = GetRayOrigin();
-            NetworkedRayOriginPosition = rayOrigin.position;
-            NetworkedRayOriginRotation = rayOrigin.rotation;
         }
 
         private void TryExtinguishFire()
@@ -348,7 +334,7 @@ namespace FireLink119.Extinguisher
 
             if (fire != null)
             {
-                fire.TakeExtinguish(Runner.DeltaTime);
+                fire.RequestExtinguish(Runner.DeltaTime);
             }
         }
 

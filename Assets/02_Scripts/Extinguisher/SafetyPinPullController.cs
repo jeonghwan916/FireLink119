@@ -14,6 +14,10 @@ namespace FireLink119.Extinguisher
         [SerializeField] private XRSocketInteractor _socket;
 
         private Rigidbody _rigidbody;
+        private Transform _attachedParent;
+        private Vector3 _attachedLocalPosition;
+        private Quaternion _attachedLocalRotation;
+        private Vector3 _attachedLocalScale;
         private bool _detached;
 
         private void Awake()
@@ -24,6 +28,10 @@ namespace FireLink119.Extinguisher
             }
 
             _rigidbody = GetComponent<Rigidbody>();
+            _attachedParent = transform.parent;
+            _attachedLocalPosition = transform.localPosition;
+            _attachedLocalRotation = transform.localRotation;
+            _attachedLocalScale = transform.localScale;
 
             if (_extinguisher == null)
             {
@@ -53,6 +61,12 @@ namespace FireLink119.Extinguisher
             if (_extinguisher != null && _extinguisher.NetworkIsSafetyPinPulled)
             {
                 DetachFromExtinguisher(keepKinematic: IsSelectedByHand());
+                return;
+            }
+
+            if (!_detached)
+            {
+                KeepAttachedToExtinguisher();
             }
         }
 
@@ -108,6 +122,19 @@ namespace FireLink119.Extinguisher
             {
                 SetDynamic();
             }
+        }
+
+        private void KeepAttachedToExtinguisher()
+        {
+            if (_attachedParent != null && transform.parent != _attachedParent)
+            {
+                transform.SetParent(_attachedParent, worldPositionStays: false);
+            }
+
+            transform.localPosition = _attachedLocalPosition;
+            transform.localRotation = _attachedLocalRotation;
+            transform.localScale = _attachedLocalScale;
+            SetKinematic();
         }
 
         private void ForceSocketSelectExit()

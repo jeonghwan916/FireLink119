@@ -192,9 +192,15 @@ namespace FireLink119.Extinguisher
 
         private void RequestGrabAuthority()
         {
-            if (!IsNetworkReady || IsHeldByOtherPlayer())
+            if (!IsNetworkReady)
             {
-                LogDebug($"RequestGrabAuthority blocked. isNetworkReady={IsNetworkReady}, local={Runner?.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object?.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}");
+                LogDebug("RequestGrabAuthority blocked. network is not ready.");
+                return;
+            }
+
+            if (IsHeldByOtherPlayer())
+            {
+                LogDebug($"RequestGrabAuthority blocked. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}");
                 return;
             }
 
@@ -230,9 +236,15 @@ namespace FireLink119.Extinguisher
 
         private void ReleaseIfHeldByLocalPlayer()
         {
-            if (!IsNetworkReady || !HasStateAuthority || HeldBy != Runner.LocalPlayer)
+            if (!IsNetworkReady)
             {
-                LogDebug($"Release skipped. isNetworkReady={IsNetworkReady}, local={Runner?.LocalPlayer}, hasStateAuthority={HasStateAuthority}, heldBy={HeldBy}, stateAuthority={Object?.StateAuthority}");
+                LogDebug("Release skipped. network is not ready.");
+                return;
+            }
+
+            if (!HasStateAuthority || HeldBy != Runner.LocalPlayer)
+            {
+                LogDebug($"Release skipped. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, heldBy={HeldBy}, stateAuthority={Object.StateAuthority}");
                 return;
             }
 
@@ -270,6 +282,12 @@ namespace FireLink119.Extinguisher
 
         private void TryPullSafetyPin()
         {
+            if (!IsNetworkReady)
+            {
+                LogDebug("TryPullSafetyPin skipped. network is not ready.");
+                return;
+            }
+
             LogDebug($"TryPullSafetyPin. local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, stateAuthority={Object.StateAuthority}, isHeld={IsHeld}, heldBy={HeldBy}, isHeldByLocal={IsHeldByLocalPlayer}, isSafetyPinPulled={IsSafetyPinPulled}");
 
             if (!IsHeldByLocalPlayer || !HasStateAuthority)
@@ -282,6 +300,12 @@ namespace FireLink119.Extinguisher
 
         private void SetFiring(bool firing)
         {
+            if (!IsNetworkReady)
+            {
+                LogDebug($"SetFiring skipped. requested={firing}, network is not ready.");
+                return;
+            }
+
             if (!IsHeldByLocalPlayer || !HasStateAuthority)
             {
                 LogDebug($"SetFiring blocked. requested={firing}, local={Runner.LocalPlayer}, hasStateAuthority={HasStateAuthority}, isHeldByLocal={IsHeldByLocalPlayer}, isSafetyPinPulled={IsSafetyPinPulled}, currentIsFiring={IsFiring}");
@@ -303,17 +327,19 @@ namespace FireLink119.Extinguisher
 
         private void TryExtinguishFire()
         {
-            Vector3 rayDirection = NetworkedRayOriginRotation * Vector3.forward;
+            Transform rayOrigin = GetRayOrigin();
+            Vector3 rayOriginPosition = rayOrigin.position;
+            Vector3 rayDirection = rayOrigin.forward;
 
             if (!Physics.Raycast(
-                    NetworkedRayOriginPosition,
+                    rayOriginPosition,
                     rayDirection,
                     out RaycastHit hit,
                     _range,
                     _fireLayer,
                     QueryTriggerInteraction.Collide))
             {
-                LogDebug($"TryExtinguishFire miss. isMasterClient={Runner.IsSharedModeMasterClient}, origin={NetworkedRayOriginPosition}, forward={rayDirection}");
+                LogDebug($"TryExtinguishFire miss. isMasterClient={Runner.IsSharedModeMasterClient}, origin={rayOriginPosition}, forward={rayDirection}");
                 return;
             }
 

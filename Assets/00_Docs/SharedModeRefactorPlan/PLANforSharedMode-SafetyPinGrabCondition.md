@@ -1,3 +1,6 @@
+# PLAN for Shared Mode - SafetyPinGrabCondition.cs
+
+```csharp
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Filtering;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -28,7 +31,7 @@ namespace FireLink119.Extinguisher
                 return CanSelectBySocket();
             }
 
-            return CanSelectByLocalHolder(interactor, interactable);
+            return CanSelectByLocalHolder();
         }
 
         private bool CanSelectBySocket()
@@ -46,34 +49,23 @@ namespace FireLink119.Extinguisher
             return !_blockSocketSelectionAfterPulled || !_extinguisher.NetworkIsSafetyPinPulled;
         }
 
-        private bool CanSelectByLocalHolder(
-            IXRSelectInteractor interactor,
-            IXRSelectInteractable interactable)
+        private bool CanSelectByLocalHolder()
         {
             if (_extinguisher == null || !_extinguisher.IsNetworkReady)
             {
                 return false;
             }
 
-            if (!_extinguisher.IsHeldByLocalPlayer)
-            {
-                return false;
-            }
-
-            if (!_extinguisher.NetworkIsSafetyPinPulled)
-            {
-                return true;
-            }
-
-            foreach (IXRSelectInteractor selectingInteractor in interactable.interactorsSelecting)
-            {
-                if (selectingInteractor == interactor)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return _extinguisher.IsHeldByLocalPlayer &&
+                   !_extinguisher.NetworkIsSafetyPinPulled;
         }
     }
 }
+```
+
+## Self Review
+
+- This script does not write networked state. It only filters local XR selection.
+- Hand selection is allowed only when the local player is already holding the extinguisher and the pin has not been pulled.
+- Socket selection remains allowed before the pin is pulled, and can be blocked after the pin is pulled.
+- `InputAuthority`, Host/Client role checks, `runner.IsServer`, RPCs, and debug logs are not used.

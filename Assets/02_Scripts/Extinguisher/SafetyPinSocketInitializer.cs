@@ -12,7 +12,7 @@ namespace FireLink119.Extinguisher
         [SerializeField] private XRSocketInteractor _socket;
         [SerializeField] private XRGrabInteractable _safetyPin;
         [SerializeField] private int _restoreFrameCount = 2;
-        [SerializeField] private bool _logDebug;
+        [SerializeField] private bool _detachFromExtinguisherOnHandGrab = true;
 
         private Rigidbody _safetyPinRigidbody;
 
@@ -34,7 +34,12 @@ namespace FireLink119.Extinguisher
             if (_socket != null)
             {
                 _socket.selectEntered.AddListener(OnSocketEntered);
-                _socket.selectExited.AddListener(OnSocketExited);
+            }
+
+            if (_safetyPin != null)
+            {
+                _safetyPin.selectEntered.AddListener(OnSafetyPinSelected);
+                _safetyPin.selectExited.AddListener(OnSafetyPinDeselected);
             }
         }
 
@@ -43,7 +48,12 @@ namespace FireLink119.Extinguisher
             if (_socket != null)
             {
                 _socket.selectEntered.RemoveListener(OnSocketEntered);
-                _socket.selectExited.RemoveListener(OnSocketExited);
+            }
+
+            if (_safetyPin != null)
+            {
+                _safetyPin.selectEntered.RemoveListener(OnSafetyPinSelected);
+                _safetyPin.selectExited.RemoveListener(OnSafetyPinDeselected);
             }
         }
 
@@ -69,14 +79,8 @@ namespace FireLink119.Extinguisher
 
         private void RestoreSafetyPinToSocket()
         {
-            if (_socket == null || _safetyPin == null)
+            if (_socket == null || _safetyPin == null || _socket.hasSelection)
             {
-                return;
-            }
-
-            if (_socket.hasSelection)
-            {
-                Log("skip restore because socket already has selection.");
                 return;
             }
 
@@ -85,36 +89,97 @@ namespace FireLink119.Extinguisher
                 : _socket.transform;
 
             _safetyPin.transform.SetPositionAndRotation(attach.position, attach.rotation);
-
-            if (_safetyPinRigidbody != null)
-            {
-                _safetyPinRigidbody.linearVelocity = Vector3.zero;
-                _safetyPinRigidbody.angularVelocity = Vector3.zero;
-            }
-
+            SetSafetyPinKinematic();
             _socket.socketActive = true;
-
-            Log($"restored safety pin to socket. pin={_safetyPin.name}");
         }
 
         private void OnSocketEntered(SelectEnterEventArgs args)
         {
-            Log($"socket entered interactable={args.interactableObject.transform.name}");
+            if (args.interactableObject.transform == _safetyPin.transform)
+            {
+                SetSafetyPinKinematic();
+            }
         }
 
-        private void OnSocketExited(SelectExitEventArgs args)
+        private void OnSafetyPinSelected(SelectEnterEventArgs args)
         {
-            Log($"socket exited interactable={args.interactableObject.transform.name}");
+            if (args.interactorObject is XRSocketInteractor)
+            {
+                SetSafetyPinKinematic();
+                return;
+            }
+
+            if (_detachFromExtinguisherOnHandGrab)
+            {
+                _safetyPin.transform.SetParent(null, true);
+            }
+
+            SetSafetyPinHeld();
         }
 
-        private void Log(string message)
+        private void OnSafetyPinDeselected(SelectExitEventArgs args)
         {
-            if (!_logDebug)
+            if (args.interactorObject is XRSocketInteractor)
             {
                 return;
             }
 
-            Debug.Log($"[SafetyPinSocketInitializer] {message}");
+            if (_detachFromExtinguisherOnHandGrab)
+            {
+                _safetyPin.transform.SetParent(null, true);
+                StartCoroutine(DetachAfterSelectionEnds());
+            }
+
+            SetSafetyPinDynamic();
+        }
+
+        private IEnumerator DetachAfterSelectionEnds()
+        {
+            yield return null;
+
+            if (_safetyPin != null)
+            {
+                _safetyPin.transform.SetParent(null, true);
+            }
+        }
+
+        private void SetSafetyPinKinematic()
+        {
+            if (_safetyPinRigidbody == null)
+            {
+                return;
+            }
+
+            _safetyPinRigidbody.linearVelocity = Vector3.zero;
+            _safetyPinRigidbody.angularVelocity = Vector3.zero;
+            _safetyPinRigidbody.useGravity = false;
+            _safetyPinRigidbody.isKinematic = true;
+        }
+
+        private void SetSafetyPinDynamic()
+        {
+            if (_safetyPinRigidbody == null)
+            {
+                return;
+            }
+
+            _safetyPinRigidbody.isKinematic = false;
+            _safetyPinRigidbody.useGravity = true;
+            _safetyPinRigidbody.WakeUp();
+        }
+
+        private void SetSafetyPinHeld()
+        {
+            if (_safetyPinRigidbody == null)
+            {
+                return;
+            }
+
+            _safetyPinRigidbody.linearVelocity = Vector3.zero;
+            _safetyPinRigidbody.angularVelocity = Vector3.zero;
+            _safetyPinRigidbody.isKinematic = false;
+            _safetyPinRigidbody.useGravity = false;
+            _safetyPinRigidbody.WakeUp();
         }
     }
 }

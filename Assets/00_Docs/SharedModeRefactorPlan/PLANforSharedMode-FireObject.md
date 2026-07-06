@@ -48,9 +48,9 @@ namespace FireLink119.Fire
                 _fireParticles = GetComponentsInChildren<ParticleSystem>();
             }
 
-            if (_fireColliders == null)
+            if (_fireColliders == null || _fireColliders.Length == 0)
             {
-                _fireColliders = Array.Empty<Collider>();
+                _fireColliders = GetComponentsInChildren<Collider>();
             }
 
             _particleInitialStates = new ParticleInitialState[_fireParticles.Length];

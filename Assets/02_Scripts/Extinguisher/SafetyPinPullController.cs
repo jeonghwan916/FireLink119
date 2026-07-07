@@ -60,7 +60,7 @@ namespace FireLink119.Extinguisher
         {
             if (_extinguisher != null && _extinguisher.NetworkIsSafetyPinPulled)
             {
-                DetachFromExtinguisher(keepKinematic: IsSelectedByHand());
+                DetachFromExtinguisher(isSelectedByHand: IsSelectedByHand());
                 return;
             }
 
@@ -79,7 +79,7 @@ namespace FireLink119.Extinguisher
             }
 
             _extinguisher?.RequestPullSafetyPin();
-            DetachFromExtinguisher(keepKinematic: true);
+            DetachFromExtinguisher(isSelectedByHand: true);
         }
 
         private void OnSelectExited(SelectExitEventArgs args)
@@ -95,7 +95,7 @@ namespace FireLink119.Extinguisher
             }
         }
 
-        private void DetachFromExtinguisher(bool keepKinematic)
+        private void DetachFromExtinguisher(bool isSelectedByHand)
         {
             if (!_detached)
             {
@@ -114,9 +114,9 @@ namespace FireLink119.Extinguisher
 
             _detached = true;
 
-            if (keepKinematic)
+            if (isSelectedByHand)
             {
-                SetKinematic();
+                SetSelectedByHand();
             }
             else
             {
@@ -173,6 +173,13 @@ namespace FireLink119.Extinguisher
             _rigidbody.angularVelocity = Vector3.zero;
             _rigidbody.useGravity = false;
             _rigidbody.isKinematic = true;
+        }
+
+        private void SetSelectedByHand()
+        {
+            _rigidbody.isKinematic = false;
+            _rigidbody.useGravity = false;
+            _rigidbody.WakeUp();
         }
 
         private void SetDynamic()

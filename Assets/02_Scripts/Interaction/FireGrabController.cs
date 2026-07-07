@@ -2,9 +2,7 @@ using FireLink119.Fire;
 using Fusion;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
-using UnityEngine.XR.Interaction.Toolkit.Filtering;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
-using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace FireLink119.Interaction
 {
@@ -12,7 +10,7 @@ namespace FireLink119.Interaction
     [RequireComponent(typeof(NetworkTransform))]
     [RequireComponent(typeof(XRGrabInteractable))]
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class FireGrabController : MonoBehaviour, IXRSelectFilter
+    public sealed class FireGrabController : MonoBehaviour
     {
         [Header("Fire")] [SerializeField] private FireObject _fireObject;
 
@@ -23,8 +21,6 @@ namespace FireLink119.Interaction
         private Rigidbody _rigidbody;
         private bool _hasExtinguishedEvent;
         private bool _isSelected;
-
-        public bool canProcess => isActiveAndEnabled;
 
         private void Awake()
         {
@@ -40,10 +36,10 @@ namespace FireLink119.Interaction
 
         private void OnEnable()
         {
+            _grabInteractable.hoverEntered.AddListener(OnHoverEntered);
             _grabInteractable.selectEntered.AddListener(OnGrabbed);
             _grabInteractable.selectExited.AddListener(OnReleased);
-            _grabInteractable.selectFilters.Add(this);
-            _hasExtinguishedEvent = IsFireExtinguishedFromNetwork();
+            _hasExtinguishedEvent = false;
 
             if (_fireObject != null)
             {
@@ -55,7 +51,7 @@ namespace FireLink119.Interaction
 
         private void OnDisable()
         {
-            _grabInteractable.selectFilters.Remove(this);
+            _grabInteractable.hoverEntered.RemoveListener(OnHoverEntered);
             _grabInteractable.selectEntered.RemoveListener(OnGrabbed);
             _grabInteractable.selectExited.RemoveListener(OnReleased);
 
@@ -68,6 +64,12 @@ namespace FireLink119.Interaction
         private void Update()
         {
             _hasExtinguishedEvent |= IsFireExtinguishedFromNetwork();
+
+            if (_isSelected)
+            {
+                RequestStateAuthorityIfCanGrab();
+            }
+
             ApplyInteractionState();
         }
 
@@ -77,35 +79,28 @@ namespace FireLink119.Interaction
             ApplyInteractionState();
         }
 
+        private void OnHoverEntered(HoverEnterEventArgs args)
+        {
+            RequestStateAuthorityIfCanGrab();
+        }
+
         private void OnGrabbed(SelectEnterEventArgs args)
         {
             _isSelected = true;
+            RequestStateAuthorityIfCanGrab();
         }
 
         private void OnReleased(SelectExitEventArgs args)
         {
             _isSelected = false;
-
-            if (_networkObject.HasStateAuthority)
-            {
-                _networkObject.ReleaseStateAuthority();
-            }
         }
 
-        public bool Process(IXRSelectInteractor interactor, IXRSelectInteractable interactable)
+        private void RequestStateAuthorityIfCanGrab()
         {
-            if (!CanGrabFromFireState())
+            if (CanGrabFromFireState() && !_networkObject.HasStateAuthority)
             {
-                return false;
+                _networkObject.RequestStateAuthority();
             }
-
-            if (_networkObject.HasStateAuthority)
-            {
-                return true;
-            }
-
-            _networkObject.RequestStateAuthority();
-            return false;
         }
 
         private void ApplyInteractionState()

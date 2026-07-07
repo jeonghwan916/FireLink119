@@ -34,7 +34,7 @@ namespace FireLink119.Fire
         [Networked] private int CurrentStage { get; set; }
         [Networked] private NetworkBool IsExtinguished { get; set; }
 
-        public bool NetworkIsExtinguished => Object != null && IsExtinguished;
+        public bool NetworkIsExtinguished => _isSpawned && Object != null && IsExtinguished;
         public event Action OnExtinguished;
 
         private ParticleInitialState[] _particleInitialStates;
@@ -43,6 +43,7 @@ namespace FireLink119.Fire
         private int _lastRenderedStage = -1;
         private bool _lastRenderedExtinguished;
         private bool _hasRaisedExtinguishedEvent;
+        private bool _isSpawned;
         private float _lastMasterAuthorityRequestTime = float.NegativeInfinity;
 
         private void Awake()
@@ -85,6 +86,7 @@ namespace FireLink119.Fire
 
         public override void Spawned()
         {
+            _isSpawned = true;
             _hasRaisedExtinguishedEvent = false;
 
             if (HasStateAuthority)
@@ -96,6 +98,11 @@ namespace FireLink119.Fire
 
             ApplyNetworkState(force: true);
             LogDebug($"Spawned. local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, isMasterClient={Runner.IsSharedModeMasterClient}");
+        }
+
+        public override void Despawned(NetworkRunner runner, bool hasState)
+        {
+            _isSpawned = false;
         }
 
         public void StateAuthorityChanged()

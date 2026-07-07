@@ -4773,7 +4773,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a81344b46ae0d894bbadc71c6b0ee202, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Network.FusionRoomConnector
-  _roomSceneName: RoomScene
+  _roomSceneName: GameScene
   _maxPlayers: 2
   _playerAvatarPrefab:
     RawGuidValue: 9db80226ad9e78c4aa60424a3900d82f

@@ -596,7 +596,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TestNetworkBootstrap
   _sessionName: Test
   _maxPlayers: 2
-  _targetSceneName: RoomScene_Test_FireAndExtinguisher
+  _targetSceneName: GameScene
   _playerAvatarPrefab:
     RawGuidValue: 9db80226ad9e78c4aa60424a3900d82f
   _playerSpawnOrigin: {x: 0, y: 0, z: 0}

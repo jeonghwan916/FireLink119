@@ -43,7 +43,7 @@ namespace FireLink119.Interaction
             _grabInteractable.selectEntered.AddListener(OnGrabbed);
             _grabInteractable.selectExited.AddListener(OnReleased);
             _grabInteractable.selectFilters.Add(this);
-            _hasExtinguishedEvent = IsFireExtinguishedFromNetwork();
+            _hasExtinguishedEvent = false;
 
             if (_fireObject != null)
             {

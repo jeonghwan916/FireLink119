@@ -2,7 +2,9 @@ using FireLink119.Fire;
 using Fusion;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.XR.Interaction.Toolkit.Filtering;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace FireLink119.Interaction
 {
@@ -10,7 +12,7 @@ namespace FireLink119.Interaction
     [RequireComponent(typeof(NetworkTransform))]
     [RequireComponent(typeof(XRGrabInteractable))]
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class FireGrabController : MonoBehaviour
+    public sealed class FireGrabController : MonoBehaviour, IXRSelectFilter
     {
         [Header("Fire")] [SerializeField] private FireObject _fireObject;
 
@@ -20,6 +22,9 @@ namespace FireLink119.Interaction
         private XRGrabInteractable _grabInteractable;
         private Rigidbody _rigidbody;
         private bool _hasExtinguishedEvent;
+        private bool _isSelected;
+
+        public bool canProcess => isActiveAndEnabled;
 
         private void Awake()
         {
@@ -36,6 +41,8 @@ namespace FireLink119.Interaction
         private void OnEnable()
         {
             _grabInteractable.selectEntered.AddListener(OnGrabbed);
+            _grabInteractable.selectExited.AddListener(OnReleased);
+            _grabInteractable.selectFilters.Add(this);
             _hasExtinguishedEvent = IsFireExtinguishedFromNetwork();
 
             if (_fireObject != null)
@@ -48,7 +55,9 @@ namespace FireLink119.Interaction
 
         private void OnDisable()
         {
+            _grabInteractable.selectFilters.Remove(this);
             _grabInteractable.selectEntered.RemoveListener(OnGrabbed);
+            _grabInteractable.selectExited.RemoveListener(OnReleased);
 
             if (_fireObject != null)
             {
@@ -70,17 +79,40 @@ namespace FireLink119.Interaction
 
         private void OnGrabbed(SelectEnterEventArgs args)
         {
-            if (CanGrabFromFireState() && !_networkObject.HasStateAuthority)
+            _isSelected = true;
+        }
+
+        private void OnReleased(SelectExitEventArgs args)
+        {
+            _isSelected = false;
+
+            if (_networkObject.HasStateAuthority)
             {
-                _networkObject.RequestStateAuthority();
+                _networkObject.ReleaseStateAuthority();
             }
+        }
+
+        public bool Process(IXRSelectInteractor interactor, IXRSelectInteractable interactable)
+        {
+            if (!CanGrabFromFireState())
+            {
+                return false;
+            }
+
+            if (_networkObject.HasStateAuthority)
+            {
+                return true;
+            }
+
+            _networkObject.RequestStateAuthority();
+            return false;
         }
 
         private void ApplyInteractionState()
         {
             bool canGrab = CanGrabFromFireState();
 
-            _grabInteractable.enabled = canGrab;
+            _grabInteractable.enabled = _isSelected || canGrab;
             _rigidbody.isKinematic = !canGrab;
         }
 

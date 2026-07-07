@@ -5184,7 +5184,7 @@ GameObject:
   - component: {fileID: 2905591496964105917}
   - component: {fileID: 7405688328152114775}
   m_Layer: 0
-  m_Name: Extinguisher
+  m_Name: Extinguisher_Dummy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5498,7 +5498,7 @@ MonoBehaviour:
   m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
-  SortKey: 1808812386
+  SortKey: 179130465
   ObjectInterest: 1
   Flags: 786433
   NestedObjects: []

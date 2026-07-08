@@ -17,12 +17,12 @@ namespace FireLink119.NPC
 
         private void Awake()
         {
+            _interactable = GetComponent<XRBaseInteractable>();
+
             if (_npcController == null)
             {
                 _npcController = GetComponentInParent<NPCController>();
             }
-
-            _interactable = GetComponent<XRBaseInteractable>();
         }
 
         private void OnEnable()
@@ -37,10 +37,7 @@ namespace FireLink119.NPC
 
         private void OnSelectEntered(SelectEnterEventArgs args)
         {
-            if (args.interactorObject is XRBaseInputInteractor inputInteractor)
-            {
-                inputInteractor.SendHapticImpulse(_hapticAmplitude, _hapticDuration);
-            }
+            SendHaptic(args);
 
             if (_npcController == null || _npcController.Runner == null)
             {
@@ -49,6 +46,14 @@ namespace FireLink119.NPC
 
             PlayerRef localPlayer = _npcController.Runner.LocalPlayer;
             _npcController.RequestFollowPlayer(localPlayer);
+        }
+
+        private void SendHaptic(SelectEnterEventArgs args)
+        {
+            if (args.interactorObject is XRBaseInputInteractor inputInteractor)
+            {
+                inputInteractor.SendHapticImpulse(_hapticAmplitude, _hapticDuration);
+            }
         }
     }
 }

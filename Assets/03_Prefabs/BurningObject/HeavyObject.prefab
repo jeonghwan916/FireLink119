@@ -338,6 +338,8 @@ GameObject:
   - component: {fileID: 8673671256267553432}
   - component: {fileID: 280274418996676212}
   - component: {fileID: 6855244986295651000}
+  - component: {fileID: 7271861911221278968}
+  - component: {fileID: 6833525714699887517}
   m_Layer: 0
   m_Name: HeavyObject
   m_TagString: Untagged
@@ -629,6 +631,43 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Interaction.FireGrabController
   _fireObject: {fileID: 1309925655037017099}
   _disableGrabWhileBurning: 1
+--- !u!114 &7271861911221278968
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4260938110725570154}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
+  SortKey: 1264044261
+  ObjectInterest: 1
+  Flags: 262145
+  NestedObjects:
+  - {fileID: 6055494844954466825}
+  NetworkedBehaviours:
+  - {fileID: 6833525714699887517}
+  ForceRemoteRenderTimeframe: 0
+--- !u!114 &6833525714699887517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4260938110725570154}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 158639473, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkTransform
+  _stateAuthorityChangeErrorCorrectionDelta: 0
+  SyncScale: 0
+  SyncParent: 0
+  _autoAOIOverride: 1
+  DisableSharedModeInterpolation: 0
 --- !u!1001 &3850960628931119976
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -640,6 +679,10 @@ PrefabInstance:
     - target: {fileID: 1741693452841693106, guid: c4ed38c72957f2241ad144a1614956d9, type: 3}
       propertyPath: m_Intensity
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7023412218851758433, guid: c4ed38c72957f2241ad144a1614956d9, type: 3}
+      propertyPath: SortKey
+      value: 2576891146
       objectReference: {fileID: 0}
     - target: {fileID: 8764043878647920493, guid: c4ed38c72957f2241ad144a1614956d9, type: 3}
       propertyPath: m_Name
@@ -718,3 +761,14 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8767152486562788127, guid: c4ed38c72957f2241ad144a1614956d9, type: 3}
   m_PrefabInstance: {fileID: 3850960628931119976}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &6055494844954466825 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7023412218851758433, guid: c4ed38c72957f2241ad144a1614956d9, type: 3}
+  m_PrefabInstance: {fileID: 3850960628931119976}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject

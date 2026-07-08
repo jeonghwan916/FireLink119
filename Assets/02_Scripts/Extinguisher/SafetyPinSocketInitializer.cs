@@ -12,7 +12,6 @@ namespace FireLink119.Extinguisher
         [SerializeField] private XRSocketInteractor _socket;
         [SerializeField] private XRGrabInteractable _safetyPin;
         [SerializeField] private int _restoreFrameCount = 2;
-        [SerializeField] private bool _logDebug;
 
         private Rigidbody _safetyPinRigidbody;
 
@@ -34,7 +33,6 @@ namespace FireLink119.Extinguisher
             if (_socket != null)
             {
                 _socket.selectEntered.AddListener(OnSocketEntered);
-                _socket.selectExited.AddListener(OnSocketExited);
             }
         }
 
@@ -43,7 +41,6 @@ namespace FireLink119.Extinguisher
             if (_socket != null)
             {
                 _socket.selectEntered.RemoveListener(OnSocketEntered);
-                _socket.selectExited.RemoveListener(OnSocketExited);
             }
         }
 
@@ -60,11 +57,7 @@ namespace FireLink119.Extinguisher
                 yield return null;
             }
 
-            for (int i = 0; i < frames; i++)
-            {
-                RestoreSafetyPinToSocket();
-                yield return null;
-            }
+            RestoreSafetyPinToSocket();
         }
 
         private void RestoreSafetyPinToSocket()
@@ -74,47 +67,34 @@ namespace FireLink119.Extinguisher
                 return;
             }
 
-            if (_socket.hasSelection)
-            {
-                Log("skip restore because socket already has selection.");
-                return;
-            }
-
             Transform attach = _socket.attachTransform != null
                 ? _socket.attachTransform
                 : _socket.transform;
 
             _safetyPin.transform.SetPositionAndRotation(attach.position, attach.rotation);
-
-            if (_safetyPinRigidbody != null)
-            {
-                _safetyPinRigidbody.linearVelocity = Vector3.zero;
-                _safetyPinRigidbody.angularVelocity = Vector3.zero;
-            }
-
+            SetSafetyPinKinematic();
             _socket.socketActive = true;
-
-            Log($"restored safety pin to socket. pin={_safetyPin.name}");
         }
 
         private void OnSocketEntered(SelectEnterEventArgs args)
         {
-            Log($"socket entered interactable={args.interactableObject.transform.name}");
+            if (_safetyPin != null && args.interactableObject.transform == _safetyPin.transform)
+            {
+                SetSafetyPinKinematic();
+            }
         }
 
-        private void OnSocketExited(SelectExitEventArgs args)
+        private void SetSafetyPinKinematic()
         {
-            Log($"socket exited interactable={args.interactableObject.transform.name}");
-        }
-
-        private void Log(string message)
-        {
-            if (!_logDebug)
+            if (_safetyPinRigidbody == null)
             {
                 return;
             }
 
-            Debug.Log($"[SafetyPinSocketInitializer] {message}");
+            _safetyPinRigidbody.linearVelocity = Vector3.zero;
+            _safetyPinRigidbody.angularVelocity = Vector3.zero;
+            _safetyPinRigidbody.useGravity = false;
+            _safetyPinRigidbody.isKinematic = true;
         }
     }
 }

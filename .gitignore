@@ -18,6 +18,7 @@
 /[Bb]uilds/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
+/.idea/
 *.log
 
 # By default unity supports Blender asset imports, *.blend1 blender files do not need to be committed to version control.
@@ -105,3 +106,6 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Project-specific generated font assets
+/Assets/TextMesh Pro/Fonts/Maplestory Bold SDF.asset

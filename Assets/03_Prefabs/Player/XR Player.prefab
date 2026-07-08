@@ -1527,13 +1527,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 782446053621567405}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.21609625, y: -0.0000000018204107, z: 4.029037e-10, w: -0.97637206}
+  m_LocalRotation: {x: -0.08715578, y: -0, z: 0, w: -0.9961947}
   m_LocalPosition: {x: 0, y: -0.304, z: 0.215}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4322854590307157625}
-  m_LocalEulerAnglesHint: {x: 24.96, y: 0, z: 360}
+  m_LocalEulerAnglesHint: {x: 10, y: 0, z: 360}
 --- !u!108 &4176655660947898053
 Light:
   m_ObjectHideFlags: 0
@@ -1545,10 +1545,10 @@ Light:
   serializedVersion: 12
   m_Type: 0
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 10
-  m_Range: 10
-  m_SpotAngle: 100
-  m_InnerSpotAngle: 50
+  m_Intensity: 30
+  m_Range: 20
+  m_SpotAngle: 80
+  m_InnerSpotAngle: 30
   m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 0
@@ -5698,7 +5698,7 @@ MonoBehaviour:
   m_NearInteractionCaster: {fileID: 2257401702707411505}
   m_NearCasterSortingStrategy: 1
   m_SortNearTargetsAfterTargetFilter: 0
-  m_EnableFarCasting: 1
+  m_EnableFarCasting: 0
   m_FarInteractionCaster: {fileID: 788642128310600801}
   m_FarAttachMode: 1
   m_EnableUIInteraction: 1
@@ -6836,7 +6836,7 @@ MonoBehaviour:
   m_NearInteractionCaster: {fileID: 6812547763783918070}
   m_NearCasterSortingStrategy: 1
   m_SortNearTargetsAfterTargetFilter: 0
-  m_EnableFarCasting: 1
+  m_EnableFarCasting: 0
   m_FarInteractionCaster: {fileID: 2501882301482012490}
   m_FarAttachMode: 1
   m_EnableUIInteraction: 1

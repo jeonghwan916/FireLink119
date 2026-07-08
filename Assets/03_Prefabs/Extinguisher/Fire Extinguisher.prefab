@@ -5457,7 +5457,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 1.2
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -10402,7 +10402,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Extinguisher
   _smokeParticle: {fileID: 7194255385189251861}
   _rayOrigin: {fileID: 7029365991083733884}
-  _range: 3.5
+  _range: 4
   _fireLayer:
     serializedVersion: 2
     m_Bits: 64

@@ -44,8 +44,8 @@ Light:
   serializedVersion: 12
   m_Type: 2
   m_Color: {r: 0.99607843, g: 0.6039216, b: 0.3764706, a: 1}
-  m_Intensity: 14.782044
-  m_Range: 8.604181
+  m_Intensity: 19.3345
+  m_Range: 8.548325
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 10, y: 10}
@@ -14630,7 +14630,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Fire.FireObject
   _fireParticles: []
-  _extinguishDuration: 4
+  _extinguishDuration: 2.5
   _extinguishStageCount: 4
   _disableCollidersWhenExtinguished: 1
   _fireColliders: []
@@ -14655,8 +14655,8 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 1.0784942
-  m_Center: {x: 0, y: 1.0784942, z: -0.125}
+  m_Radius: 1.5
+  m_Center: {x: 0, y: 1.3403265, z: -0.125}
 --- !u!82 &5990565638101293122
 AudioSource:
   m_ObjectHideFlags: 0

@@ -33,7 +33,7 @@ namespace FireLink119.Network
         private void OnEnable()
         {
             _button = FindButton(_buttonName);
-            _button.activated.AddListener(OnButtonActivated); // error part
+            _button.selectEntered.AddListener(OnButtonSelected); // error part
         }
 
         private void OnDisable()
@@ -60,8 +60,9 @@ namespace FireLink119.Network
             return interactable;
         }
         
-        private void OnButtonActivated(ActivateEventArgs args)
+        private void OnButtonSelected(SelectEnterEventArgs args)
         {
+            Debug.Log("Button Has Pressed");
             StartSharedTestSession();
         }
         

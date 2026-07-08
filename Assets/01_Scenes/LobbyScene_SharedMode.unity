@@ -999,11 +999,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1586761845760751853, guid: 64434a8fabe4fab4ba79ada5e63c0b14, type: 3}
       propertyPath: m_LocalRotation.w
-      value: -0.00000035762784
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1586761845760751853, guid: 64434a8fabe4fab4ba79ada5e63c0b14, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1586761845760751853, guid: 64434a8fabe4fab4ba79ada5e63c0b14, type: 3}
       propertyPath: m_LocalRotation.y
@@ -1011,7 +1011,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1586761845760751853, guid: 64434a8fabe4fab4ba79ada5e63c0b14, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1586761845760751853, guid: 64434a8fabe4fab4ba79ada5e63c0b14, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -1282,7 +1282,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TestNetworkBootstrap
   _sessionName: Test
   _maxPlayers: 2
-  _targetSceneName: RoomScene_Test_FireAndExtinguisher
+  _targetSceneName: GameScene
   _playerAvatarPrefab:
     RawGuidValue: 9db80226ad9e78c4aa60424a3900d82f
   _playerSpawnOrigin: {x: 0, y: 0, z: 0}

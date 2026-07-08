@@ -5498,7 +5498,7 @@ MonoBehaviour:
   m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
-  SortKey: 179130465
+  SortKey: 1808812386
   ObjectInterest: 1
   Flags: 786433
   NestedObjects: []

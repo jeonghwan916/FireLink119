@@ -17,7 +17,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1012527154846524
 Transform:
   m_ObjectHideFlags: 0
@@ -44,7 +44,7 @@ Light:
   serializedVersion: 12
   m_Type: 2
   m_Color: {r: 1, g: 0.32040966, b: 0, a: 1}
-  m_Intensity: 9.402441
+  m_Intensity: 11.277165
   m_Range: 7
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -4974,6 +4974,8 @@ MonoBehaviour:
   _extinguishStageCount: 4
   _disableCollidersWhenExtinguished: 1
   _fireColliders: []
+  _masterAuthorityRequestInterval: 1
+  _logDebug: 0
 --- !u!135 &1698207282906614542
 SphereCollider:
   m_ObjectHideFlags: 0

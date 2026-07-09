@@ -18,7 +18,7 @@ GameObject:
   - component: {fileID: 8524290181422498839}
   - component: {fileID: -656492538796588782}
   m_Layer: 0
-  m_Name: ladder_small (1)
+  m_Name: BurningObject_Ladder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -228,7 +228,7 @@ MonoBehaviour:
   m_SnapToColliderVolume: 1
   m_ReinitializeDynamicAttachEverySingleGrab: 1
   m_AttachEaseInTime: 0.15
-  m_MovementType: 2
+  m_MovementType: 1
   m_PredictedVisualsTransform: {fileID: 0}
   m_VelocityDamping: 1
   m_VelocityScale: 1

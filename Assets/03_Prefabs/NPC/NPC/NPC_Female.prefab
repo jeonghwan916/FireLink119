@@ -305,7 +305,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.15
+  m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &5333239451553599490
 MonoBehaviour:
@@ -1252,7 +1252,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.15
+  m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &2941545335398551388
 MonoBehaviour:
@@ -1460,9 +1460,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e456d16287d6ed4285f3aeff0c762d7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
-  _destinationTargets: []
-  _doorTargets: []
-  _networkDoors: []
+  _destinationTargets:
+  - {fileID: 0}
+  - {fileID: 0}
+  _doorTargets:
+  - {fileID: 0}
+  - {fileID: 0}
+  _networkDoors:
+  - {fileID: 0}
+  - {fileID: 0}
   _walkSpeed: 2
   _runSpeed: 6
   _crouchWalkSpeed: 2
@@ -1476,6 +1482,24 @@ MonoBehaviour:
   _openDoorCancelTransitionDuration: 0.05
   _initialState: 0
   _initialIsCrouching: 0
+  _entryInstructionClip: {fileID: 8300000, guid: fd6b9901a9e8e844b9428ab26b28061a, type: 3}
+  _entryInstructionVolume: 1
+  _entryInstructionDelay: 0.5
+  _followInstructionClip: {fileID: 8300000, guid: 54130c583e111fa4bbe88aae01799c36, type: 3}
+  _followInstructionVolume: 1
+  _destinationNpcInstructionClip: {fileID: 8300000, guid: 18fdc33aa4d1c94478b2cd2c5422bb2e, type: 3}
+  _destinationNpcInstructionVolume: 1
+  _destinationInstructionClip: {fileID: 8300000, guid: 5346e754f8a732a44a8a3043449c55ca, type: 3}
+  _destinationInstructionVolume: 1
+  _destinationInstructionDelayPadding: 0.1
+  _secondDestinationNpcInstructionClip: {fileID: 8300000, guid: 67c3b99fb0ba4764d97055adbc7d891a, type: 3}
+  _secondDestinationNpcInstructionVolume: 1
+  _secondDestinationInstructionClip: {fileID: 8300000, guid: 57b9b0239944ce14a8496953d924772a, type: 3}
+  _secondDestinationInstructionVolume: 1
+  _stopOrDeathInstructionClip: {fileID: 8300000, guid: 07db92668ca54b44cb29530ced21dcb4, type: 3}
+  _stopOrDeathInstructionVolume: 1
+  _secondStopOrDeathInstructionClip: {fileID: 8300000, guid: 85456e15ac0e93a428fb6b2101e77556, type: 3}
+  _secondStopOrDeathInstructionVolume: 1
   _calmDownClips:
   - {fileID: 8300000, guid: c277412f998210548b69c44a3e3f221a, type: 3}
   - {fileID: 8300000, guid: 4bc9bafbd3913bb49bed09dabae07eca, type: 3}

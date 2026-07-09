@@ -394,6 +394,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCShoulderGrabTrigger
   _npcController: {fileID: 7828536666634395544}
+  _playerTag: Player
+  _allowPlayerTagContact: 1
+  _activationCooldown: 1
   _hapticAmplitude: 0.5
   _hapticDuration: 0.08
 --- !u!1 &1647181657829557278
@@ -1341,6 +1344,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCShoulderGrabTrigger
   _npcController: {fileID: 7828536666634395544}
+  _playerTag: Player
+  _allowPlayerTagContact: 1
+  _activationCooldown: 1
   _hapticAmplitude: 0.5
   _hapticDuration: 0.08
 --- !u!1 &4794438333158849635
@@ -1382,6 +1388,7 @@ Transform:
   m_Children:
   - {fileID: 5407836186094597467}
   - {fileID: 6793353088173226878}
+  - {fileID: 2860922335033236256}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!95 &7739305418088837550
@@ -1462,6 +1469,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
   _destinationTargets: []
   _doorTargets: []
+  _networkDoors: []
   _walkSpeed: 2
   _runSpeed: 6
   _crouchWalkSpeed: 2
@@ -1475,6 +1483,24 @@ MonoBehaviour:
   _openDoorCancelTransitionDuration: 0.05
   _initialState: 0
   _initialIsCrouching: 0
+  _entryInstructionClip: {fileID: 8300000, guid: fd6b9901a9e8e844b9428ab26b28061a, type: 3}
+  _entryInstructionVolume: 1
+  _entryInstructionDelay: 0.5
+  _followInstructionClip: {fileID: 8300000, guid: 54130c583e111fa4bbe88aae01799c36, type: 3}
+  _followInstructionVolume: 1
+  _destinationNpcInstructionClip: {fileID: 8300000, guid: 18fdc33aa4d1c94478b2cd2c5422bb2e, type: 3}
+  _destinationNpcInstructionVolume: 1
+  _destinationInstructionClip: {fileID: 8300000, guid: 5346e754f8a732a44a8a3043449c55ca, type: 3}
+  _destinationInstructionVolume: 1
+  _destinationInstructionDelayPadding: 0.1
+  _secondDestinationNpcInstructionClip: {fileID: 8300000, guid: 67c3b99fb0ba4764d97055adbc7d891a, type: 3}
+  _secondDestinationNpcInstructionVolume: 1
+  _secondDestinationInstructionClip: {fileID: 8300000, guid: 57b9b0239944ce14a8496953d924772a, type: 3}
+  _secondDestinationInstructionVolume: 1
+  _stopOrDeathInstructionClip: {fileID: 8300000, guid: 07db92668ca54b44cb29530ced21dcb4, type: 3}
+  _stopOrDeathInstructionVolume: 1
+  _secondStopOrDeathInstructionClip: {fileID: 8300000, guid: 85456e15ac0e93a428fb6b2101e77556, type: 3}
+  _secondStopOrDeathInstructionVolume: 1
   _calmDownClips:
   - {fileID: 8300000, guid: c277412f998210548b69c44a3e3f221a, type: 3}
   - {fileID: 8300000, guid: 4bc9bafbd3913bb49bed09dabae07eca, type: 3}
@@ -1506,18 +1532,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ab9b7b3a0f0e4347bf846c58744a385, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCAnimationEvents
-  FootstepAudioClips:
-  - {fileID: 8300000, guid: 72f526a6a9890f643a88e85a61c86c8a, type: 3}
-  - {fileID: 8300000, guid: 85016e0f2b01da248b9663dd49a161b0, type: 3}
-  - {fileID: 8300000, guid: 186de84b3207156479abe98f4958fed0, type: 3}
-  - {fileID: 8300000, guid: 1a91fcd19acf1e54bba0945d9f390849, type: 3}
-  - {fileID: 8300000, guid: 14e8a8d2158bec840b56c54f5266e692, type: 3}
-  - {fileID: 8300000, guid: 29841e7d5bbfb5b419c9ad16ca8bc4c1, type: 3}
-  - {fileID: 8300000, guid: dd1af302b8902684d9381de1f2d3a5af, type: 3}
-  - {fileID: 8300000, guid: 67c8b33e424ccdc4486edf538ab91c5a, type: 3}
-  - {fileID: 8300000, guid: 274649b0e221539409070ebf6c18918b, type: 3}
-  - {fileID: 8300000, guid: a3194b8bbc96ef84fab1f98f4b7dae3e, type: 3}
-  FootstepAudioVolume: 0.5
+  _footstepAudioClips: []
+  _footstepAudioVolume: 0.5
 --- !u!195 &7819592708556076532
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -2842,6 +2858,68 @@ Transform:
   - {fileID: 6828529846616329903}
   m_Father: {fileID: 8311170743271938466}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &2323488838512442571
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1406231096781468194}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 2.064741
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.00000002845482
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.19757718
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_Name
+      value: FemaleRescuer_texture@Breakdance Freezes
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+--- !u!4 &2860922335033236256 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+  m_PrefabInstance: {fileID: 2323488838512442571}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &6509514945631519701
 PrefabInstance:
   m_ObjectHideFlags: 0

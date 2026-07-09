@@ -129,6 +129,8 @@ MonoBehaviour:
   _doorTargetId: 0
   _destinationId: 0
   _dialogueId: 0
+  _playDestinationInstruction: 0
+  _destinationInstructionId: 0
 --- !u!114 &2200267274561039962
 MonoBehaviour:
   m_ObjectHideFlags: 0

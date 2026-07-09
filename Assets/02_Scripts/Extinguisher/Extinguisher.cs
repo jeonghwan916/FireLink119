@@ -1,4 +1,5 @@
 using FireLink119.Fire;
+using FireLink119.Player;
 using Fusion;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -23,6 +24,11 @@ namespace FireLink119.Extinguisher
 
         [Header("Safety Pin")]
         [SerializeField] private XRSocketInteractor _safetyPinSocket;
+
+        [Header("Safety Pin Instruction")]
+        [SerializeField] private AudioClip _safetyPinInstructionClip;
+        [SerializeField] private float _safetyPinInstructionVolume = 1f;
+        [SerializeField] private float _safetyPinInstructionDelay = 0.5f;
 
         [Header("Authority")]
         [SerializeField] private float _grabAuthorityRequestTimeout = 0.75f;
@@ -49,6 +55,9 @@ namespace FireLink119.Extinguisher
         private bool _pendingGrab;
         private float _pendingGrabStartedTime;
         private bool _lastRenderedFiring;
+        private bool _hasPlayedSafetyPinInstruction;
+        private bool _wasHeldByLocalPlayer;
+        private float _safetyPinInstructionReadyTime;
 
         private void Awake()
         {
@@ -102,6 +111,9 @@ namespace FireLink119.Extinguisher
             }
 
             ApplyNetworkState(force: true);
+            _hasPlayedSafetyPinInstruction = false;
+            _wasHeldByLocalPlayer = false;
+            _safetyPinInstructionReadyTime = 0f;
             LogDebug($"Spawned. local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, isMasterClient={Runner.IsSharedModeMasterClient}");
         }
 
@@ -110,6 +122,7 @@ namespace FireLink119.Extinguisher
             _isSpawned = false;
             _pendingGrab = false;
             _isLocallySelected = false;
+            _wasHeldByLocalPlayer = false;
         }
 
         public void StateAuthorityChanged()
@@ -151,6 +164,7 @@ namespace FireLink119.Extinguisher
             }
 
             ApplyNetworkState(force: false);
+            TryPlaySafetyPinInstruction();
         }
 
         public void RequestPullSafetyPin()
@@ -290,6 +304,40 @@ namespace FireLink119.Extinguisher
             }
 
             IsSafetyPinPulled = true;
+        }
+
+        private void TryPlaySafetyPinInstruction()
+        {
+            if (_hasPlayedSafetyPinInstruction || _safetyPinInstructionClip == null)
+            {
+                return;
+            }
+
+            if (!IsHeldByLocalPlayer)
+            {
+                _wasHeldByLocalPlayer = false;
+                return;
+            }
+
+            if (!_wasHeldByLocalPlayer)
+            {
+                _wasHeldByLocalPlayer = true;
+                _safetyPinInstructionReadyTime = Time.time + Mathf.Max(0f, _safetyPinInstructionDelay);
+            }
+
+            if (Time.time < _safetyPinInstructionReadyTime)
+            {
+                return;
+            }
+
+            _hasPlayedSafetyPinInstruction = true;
+
+            if (NetworkIsSafetyPinPulled)
+            {
+                return;
+            }
+
+            LocalNarrationAudio.PlayOneShot(_safetyPinInstructionClip, _safetyPinInstructionVolume);
         }
 
         private void SetFiring(bool firing)

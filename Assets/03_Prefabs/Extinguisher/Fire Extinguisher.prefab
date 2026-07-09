@@ -10407,6 +10407,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   _safetyPinSocket: {fileID: 5573784677080449685}
+  _safetyPinInstructionClip: {fileID: 8300000, guid: 82177936cbca303488e4bd858f298e3a, type: 3}
+  _safetyPinInstructionVolume: 1
+  _safetyPinInstructionDelay: 0.5
   _grabAuthorityRequestTimeout: 0.75
   _logDebug: 0
 --- !u!82 &7875310213087444946

@@ -1,5 +1,6 @@
 using Fusion;
 using FireLink119.Network;
+using FireLink119.Player;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -51,6 +52,11 @@ namespace FireLink119.NPC
         [SerializeField] private NPCState _initialState = NPCState.Idle;
         [SerializeField] private bool _initialIsCrouching;
 
+        [Header("Entry Instruction")]
+        [SerializeField] private AudioClip _entryInstructionClip;
+        [SerializeField] private float _entryInstructionVolume = 1f;
+        [SerializeField] private float _entryInstructionDelay = 0.5f;
+
         [Header("Calmdown Dialogue")]
         [SerializeField] private AudioClip[] _calmDownClips;
         [SerializeField] private string[] _calmDownTexts;
@@ -97,6 +103,8 @@ namespace FireLink119.NPC
         private bool _hasPlayedOpeningDoorTrigger;
         private bool _hasConfiguredAgent;
         private bool _agentConfiguredAsAuthority;
+        private bool _hasHandledEntryInstruction;
+        private float _entryInstructionReadyTime;
 
         private void Awake()
         {
@@ -131,6 +139,9 @@ namespace FireLink119.NPC
             RefreshAuthorityTargetFromNetworkState();
             ApplyNetworkPose();
             ApplyNetworkAnimation();
+
+            _hasHandledEntryInstruction = false;
+            _entryInstructionReadyTime = Time.time + Mathf.Max(0f, _entryInstructionDelay);
         }
 
         public override void FixedUpdateNetwork()
@@ -156,6 +167,7 @@ namespace FireLink119.NPC
             ApplyNetworkPose();
             ApplyNetworkAnimation();
             ApplyNetworkEvents();
+            TryPlayEntryInstruction();
         }
 
         public void RequestFollowPlayer(PlayerRef player)
@@ -261,6 +273,31 @@ namespace FireLink119.NPC
             if (_audioSource != null && clip != null)
             {
                 _audioSource.PlayOneShot(clip);
+            }
+        }
+
+        private void TryPlayEntryInstruction()
+        {
+            if (_hasHandledEntryInstruction)
+            {
+                return;
+            }
+
+            if (Time.time < _entryInstructionReadyTime)
+            {
+                return;
+            }
+
+            _hasHandledEntryInstruction = true;
+
+            if (TargetMode == NPCTargetMode.FollowPlayer || IsDead)
+            {
+                return;
+            }
+
+            if (_entryInstructionClip != null)
+            {
+                LocalNarrationAudio.PlayOneShot(_entryInstructionClip, _entryInstructionVolume);
             }
         }
 

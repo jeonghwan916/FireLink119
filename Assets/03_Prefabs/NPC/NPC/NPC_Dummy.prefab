@@ -394,6 +394,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCShoulderGrabTrigger
   _npcController: {fileID: 7828536666634395544}
+  _playerTag: Player
+  _allowPlayerTagContact: 1
+  _activationCooldown: 1
   _hapticAmplitude: 0.5
   _hapticDuration: 0.08
 --- !u!1 &1647181657829557278
@@ -1341,6 +1344,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCShoulderGrabTrigger
   _npcController: {fileID: 7828536666634395544}
+  _playerTag: Player
+  _allowPlayerTagContact: 1
+  _activationCooldown: 1
   _hapticAmplitude: 0.5
   _hapticDuration: 0.08
 --- !u!1 &4794438333158849635
@@ -1382,6 +1388,7 @@ Transform:
   m_Children:
   - {fileID: 5407836186094597467}
   - {fileID: 6793353088173226878}
+  - {fileID: 2860922335033236256}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!95 &7739305418088837550
@@ -1462,6 +1469,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
   _destinationTargets: []
   _doorTargets: []
+  _networkDoors: []
   _walkSpeed: 2
   _runSpeed: 6
   _crouchWalkSpeed: 2
@@ -1524,18 +1532,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ab9b7b3a0f0e4347bf846c58744a385, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCAnimationEvents
-  FootstepAudioClips:
-  - {fileID: 8300000, guid: 72f526a6a9890f643a88e85a61c86c8a, type: 3}
-  - {fileID: 8300000, guid: 85016e0f2b01da248b9663dd49a161b0, type: 3}
-  - {fileID: 8300000, guid: 186de84b3207156479abe98f4958fed0, type: 3}
-  - {fileID: 8300000, guid: 1a91fcd19acf1e54bba0945d9f390849, type: 3}
-  - {fileID: 8300000, guid: 14e8a8d2158bec840b56c54f5266e692, type: 3}
-  - {fileID: 8300000, guid: 29841e7d5bbfb5b419c9ad16ca8bc4c1, type: 3}
-  - {fileID: 8300000, guid: dd1af302b8902684d9381de1f2d3a5af, type: 3}
-  - {fileID: 8300000, guid: 67c8b33e424ccdc4486edf538ab91c5a, type: 3}
-  - {fileID: 8300000, guid: 274649b0e221539409070ebf6c18918b, type: 3}
-  - {fileID: 8300000, guid: a3194b8bbc96ef84fab1f98f4b7dae3e, type: 3}
-  FootstepAudioVolume: 0.5
+  _footstepAudioClips: []
+  _footstepAudioVolume: 0.5
 --- !u!195 &7819592708556076532
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -2860,6 +2858,68 @@ Transform:
   - {fileID: 6828529846616329903}
   m_Father: {fileID: 8311170743271938466}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &2323488838512442571
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1406231096781468194}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 2.064741
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.00000002845482
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.19757718
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+      propertyPath: m_Name
+      value: FemaleRescuer_texture@Breakdance Freezes
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+--- !u!4 &2860922335033236256 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: a9abd39185a8d1745a728b1f072eb899, type: 3}
+  m_PrefabInstance: {fileID: 2323488838512442571}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &6509514945631519701
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -17,7 +17,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &563568411351893999
 Transform:
   m_ObjectHideFlags: 0
@@ -44,8 +44,8 @@ Light:
   serializedVersion: 12
   m_Type: 2
   m_Color: {r: 0.99607843, g: 0.6039216, b: 0.3764706, a: 1}
-  m_Intensity: 17.140583
-  m_Range: 8.857961
+  m_Intensity: 19.3345
+  m_Range: 8.548325
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 10, y: 10}
@@ -14630,10 +14630,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Fire.FireObject
   _fireParticles: []
-  _extinguishDuration: 4
+  _extinguishDuration: 2.5
   _extinguishStageCount: 4
   _disableCollidersWhenExtinguished: 1
   _fireColliders: []
+  _masterAuthorityRequestInterval: 1
+  _logDebug: 0
 --- !u!135 &2248263024600412006
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -14653,8 +14655,8 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 1
-  m_Center: {x: 0, y: 1, z: -0.125}
+  m_Radius: 1.5
+  m_Center: {x: 0, y: 1.3403265, z: -0.125}
 --- !u!82 &5990565638101293122
 AudioSource:
   m_ObjectHideFlags: 0
@@ -14668,7 +14670,7 @@ AudioSource:
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 8300000, guid: 57294301f9bedd547b37747f414c89ea, type: 3}
   m_PlayOnAwake: 1
-  m_Volume: 1
+  m_Volume: 0.4
   m_Pitch: 1
   Loop: 1
   Mute: 0
@@ -14677,7 +14679,7 @@ AudioSource:
   Priority: 128
   DopplerLevel: 1
   MinDistance: 1
-  MaxDistance: 500
+  MaxDistance: 45
   Pan2D: 0
   rolloffMode: 0
   BypassEffects: 0
@@ -14712,7 +14714,7 @@ AudioSource:
     m_Curve:
     - serializedVersion: 3
       time: 0
-      value: 0
+      value: 1
       inSlope: 0
       outSlope: 0
       tangentMode: 0

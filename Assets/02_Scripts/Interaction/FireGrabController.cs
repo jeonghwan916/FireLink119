@@ -1,3 +1,4 @@
+using System.Collections;
 using FireLink119.Fire;
 using Fusion;
 using UnityEngine;
@@ -20,6 +21,9 @@ namespace FireLink119.Interaction
         private XRGrabInteractable _grabInteractable;
         private Rigidbody _rigidbody;
         private bool _hasExtinguishedEvent;
+        private bool _hasActivatedPhysics;
+        private bool _hasAppliedGrabAvailability;
+        private bool _lastGrabAvailability;
         private bool _isSelected;
 
         private void Awake()
@@ -40,13 +44,15 @@ namespace FireLink119.Interaction
             _grabInteractable.selectEntered.AddListener(OnGrabbed);
             _grabInteractable.selectExited.AddListener(OnReleased);
             _hasExtinguishedEvent = false;
+            _hasAppliedGrabAvailability = false;
 
             if (_fireObject != null)
             {
                 _fireObject.OnExtinguished += HandleFireExtinguished;
             }
 
-            ApplyInteractionState();
+            EnsurePhysicsLockedBeforeFirstGrab();
+            ApplyGrabAvailability();
         }
 
         private void OnDisable()
@@ -70,13 +76,13 @@ namespace FireLink119.Interaction
                 RequestStateAuthorityIfCanGrab();
             }
 
-            ApplyInteractionState();
+            ApplyGrabAvailability();
         }
 
         private void HandleFireExtinguished()
         {
             _hasExtinguishedEvent = true;
-            ApplyInteractionState();
+            ApplyGrabAvailability();
         }
 
         private void OnHoverEntered(HoverEnterEventArgs args)
@@ -87,12 +93,22 @@ namespace FireLink119.Interaction
         private void OnGrabbed(SelectEnterEventArgs args)
         {
             _isSelected = true;
+
+            if (CanGrabFromFireState())
+            {
+                ActivatePhysicsOnce();
+            }
+
             RequestStateAuthorityIfCanGrab();
+            ApplyGrabAvailability();
         }
 
         private void OnReleased(SelectExitEventArgs args)
         {
             _isSelected = false;
+            ApplyGrabAvailability();
+            ApplyActivatedPhysicsState();
+            StartCoroutine(ApplyActivatedPhysicsStateAfterRelease());
         }
 
         private void RequestStateAuthorityIfCanGrab()
@@ -103,12 +119,55 @@ namespace FireLink119.Interaction
             }
         }
 
-        private void ApplyInteractionState()
+        private void ApplyGrabAvailability()
         {
             bool canGrab = CanGrabFromFireState();
+            bool grabAvailability = _isSelected || canGrab;
 
-            _grabInteractable.enabled = _isSelected || canGrab;
-            _rigidbody.isKinematic = !canGrab;
+            if (_hasAppliedGrabAvailability && _lastGrabAvailability == grabAvailability)
+            {
+                return;
+            }
+
+            _grabInteractable.enabled = grabAvailability;
+            _lastGrabAvailability = grabAvailability;
+            _hasAppliedGrabAvailability = true;
+        }
+
+        private void EnsurePhysicsLockedBeforeFirstGrab()
+        {
+            if (!_hasActivatedPhysics)
+            {
+                _rigidbody.isKinematic = true;
+            }
+        }
+
+        private void ActivatePhysicsOnce()
+        {
+            if (_hasActivatedPhysics)
+            {
+                return;
+            }
+
+            _hasActivatedPhysics = true;
+            ApplyActivatedPhysicsState();
+        }
+
+        private IEnumerator ApplyActivatedPhysicsStateAfterRelease()
+        {
+            yield return null;
+            ApplyActivatedPhysicsState();
+        }
+
+        private void ApplyActivatedPhysicsState()
+        {
+            if (!_hasActivatedPhysics)
+            {
+                return;
+            }
+
+            _rigidbody.isKinematic = false;
+            _rigidbody.WakeUp();
         }
 
         private bool CanGrabFromFireState()

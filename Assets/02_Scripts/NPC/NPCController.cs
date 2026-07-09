@@ -1,5 +1,6 @@
 using Fusion;
 using FireLink119.Network;
+using FireLink119.Player;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -51,6 +52,34 @@ namespace FireLink119.NPC
         [SerializeField] private NPCState _initialState = NPCState.Idle;
         [SerializeField] private bool _initialIsCrouching;
 
+        [Header("Entry Instruction")]
+        [SerializeField] private AudioClip _entryInstructionClip;
+        [SerializeField] private float _entryInstructionVolume = 1f;
+        [SerializeField] private float _entryInstructionDelay = 0.5f;
+
+        [Header("Follow Instruction")]
+        [SerializeField] private AudioClip _followInstructionClip;
+        [SerializeField] private float _followInstructionVolume = 1f;
+
+        [Header("Destination Instruction")]
+        [SerializeField] private AudioClip _destinationNpcInstructionClip;
+        [SerializeField] private float _destinationNpcInstructionVolume = 1f;
+        [SerializeField] private AudioClip _destinationInstructionClip;
+        [SerializeField] private float _destinationInstructionVolume = 1f;
+        [SerializeField] private float _destinationInstructionDelayPadding = 0.1f;
+
+        [Header("Second Destination Instruction")]
+        [SerializeField] private AudioClip _secondDestinationNpcInstructionClip;
+        [SerializeField] private float _secondDestinationNpcInstructionVolume = 1f;
+        [SerializeField] private AudioClip _secondDestinationInstructionClip;
+        [SerializeField] private float _secondDestinationInstructionVolume = 1f;
+
+        [Header("Stop Or Death Instruction")]
+        [SerializeField] private AudioClip _stopOrDeathInstructionClip;
+        [SerializeField] private float _stopOrDeathInstructionVolume = 1f;
+        [SerializeField] private AudioClip _secondStopOrDeathInstructionClip;
+        [SerializeField] private float _secondStopOrDeathInstructionVolume = 1f;
+
         [Header("Calmdown Dialogue")]
         [SerializeField] private AudioClip[] _calmDownClips;
         [SerializeField] private string[] _calmDownTexts;
@@ -73,6 +102,12 @@ namespace FireLink119.NPC
         [Networked] private int DialogueEventId { get; set; }
         [Networked] private int DialogueClipIndex { get; set; }
         [Networked] private NetworkBool IsCalmDownDialogue { get; set; }
+        [Networked] private int FollowInstructionEventId { get; set; }
+        [Networked] private int DestinationInstructionEventId { get; set; }
+        [Networked] private int DestinationInstructionClipId { get; set; }
+        [Networked] private int StopOrDeathInstructionEventId { get; set; }
+        [Networked] private int StopOrDeathInstructionClipId { get; set; }
+        [Networked] private int StopOrDeathInstructionPlayedMask { get; set; }
         [Networked] private NPCDeathType DeathType { get; set; }
         [Networked] private int DeathEventId { get; set; }
 
@@ -93,10 +128,19 @@ namespace FireLink119.NPC
         private Vector3 _lastDestination = Vector3.positiveInfinity;
         private float _nextRepathTime;
         private int _lastHandledDialogueEventId;
+        private int _lastHandledFollowInstructionEventId;
+        private int _lastHandledDestinationInstructionEventId;
+        private int _lastHandledStopOrDeathInstructionEventId;
         private int _lastHandledDeathEventId;
         private bool _hasPlayedOpeningDoorTrigger;
         private bool _hasConfiguredAgent;
         private bool _agentConfiguredAsAuthority;
+        private bool _hasHandledEntryInstruction;
+        private float _entryInstructionReadyTime;
+        private bool _hasPendingDestinationInstruction;
+        private float _destinationInstructionReadyTime;
+        private AudioClip _pendingDestinationInstructionClip;
+        private float _pendingDestinationInstructionVolume;
 
         private void Awake()
         {
@@ -123,6 +167,12 @@ namespace FireLink119.NPC
                 DialogueEventId = 0;
                 DialogueClipIndex = InvalidTargetId;
                 IsCalmDownDialogue = false;
+                FollowInstructionEventId = 0;
+                DestinationInstructionEventId = 0;
+                DestinationInstructionClipId = InvalidTargetId;
+                StopOrDeathInstructionEventId = 0;
+                StopOrDeathInstructionClipId = InvalidTargetId;
+                StopOrDeathInstructionPlayedMask = 0;
                 DeathType = NPCDeathType.None;
                 DeathEventId = 0;
             }
@@ -131,6 +181,16 @@ namespace FireLink119.NPC
             RefreshAuthorityTargetFromNetworkState();
             ApplyNetworkPose();
             ApplyNetworkAnimation();
+
+            _hasHandledEntryInstruction = false;
+            _entryInstructionReadyTime = Time.time + Mathf.Max(0f, _entryInstructionDelay);
+            _lastHandledFollowInstructionEventId = FollowInstructionEventId;
+            _lastHandledDestinationInstructionEventId = DestinationInstructionEventId;
+            _lastHandledStopOrDeathInstructionEventId = StopOrDeathInstructionEventId;
+            _hasPendingDestinationInstruction = false;
+            _destinationInstructionReadyTime = 0f;
+            _pendingDestinationInstructionClip = null;
+            _pendingDestinationInstructionVolume = 1f;
         }
 
         public override void FixedUpdateNetwork()
@@ -156,10 +216,19 @@ namespace FireLink119.NPC
             ApplyNetworkPose();
             ApplyNetworkAnimation();
             ApplyNetworkEvents();
+            TryPlayEntryInstruction();
+            TryPlayPendingDestinationInstruction();
         }
+
+        public bool CanAcceptShoulderInteraction => !IsDead && State != NPCState.GoingDoor;
 
         public void RequestFollowPlayer(PlayerRef player)
         {
+            if (!CanAcceptShoulderInteraction)
+            {
+                return;
+            }
+
             if (HasStateAuthority)
             {
                 if (CanRequesterControlPlayer(player, Runner != null ? Runner.LocalPlayer : default))
@@ -228,6 +297,22 @@ namespace FireLink119.NPC
             RPC_RequestPlayDialogue(dialogueId);
         }
 
+        public void RequestPlayDestinationInstruction()
+        {
+            RequestPlayDestinationInstruction(instructionId: 0);
+        }
+
+        public void RequestPlayDestinationInstruction(int instructionId)
+        {
+            if (HasStateAuthority)
+            {
+                ApplyDestinationInstruction(instructionId);
+                return;
+            }
+
+            RPC_RequestPlayDestinationInstruction(instructionId);
+        }
+
         public void ToggleCrouch()
         {
             RequestToggleCrouch();
@@ -264,9 +349,39 @@ namespace FireLink119.NPC
             }
         }
 
+        private void TryPlayEntryInstruction()
+        {
+            if (_hasHandledEntryInstruction)
+            {
+                return;
+            }
+
+            if (Time.time < _entryInstructionReadyTime)
+            {
+                return;
+            }
+
+            _hasHandledEntryInstruction = true;
+
+            if (FollowInstructionEventId > 0 || IsDead)
+            {
+                return;
+            }
+
+            if (_entryInstructionClip != null)
+            {
+                LocalNarrationAudio.PlayOneShot(_entryInstructionClip, _entryInstructionVolume);
+            }
+        }
+
         [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
         private void RPC_RequestFollowPlayer(PlayerRef player, RpcInfo info = default)
         {
+            if (!CanAcceptShoulderInteraction)
+            {
+                return;
+            }
+
             if (CanRequesterControlPlayer(player, info.Source))
             {
                 ApplyFollowPlayer(player);
@@ -315,6 +430,15 @@ namespace FireLink119.NPC
             if (CanAcceptWorldStateRequest(info.Source))
             {
                 ApplyDialogue(dialogueId);
+            }
+        }
+
+        [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+        private void RPC_RequestPlayDestinationInstruction(int instructionId, RpcInfo info = default)
+        {
+            if (CanAcceptWorldStateRequest(info.Source))
+            {
+                ApplyDestinationInstruction(instructionId);
             }
         }
 
@@ -546,9 +670,12 @@ namespace FireLink119.NPC
                 return;
             }
 
+            bool shouldNotifyFollowInstruction = FollowInstructionEventId == 0;
+
             if (IsRouteInProgress())
             {
-                ApplyRandomCalmDownDialogue();
+                ApplyStopOrDeathInstruction();
+                //ApplyRandomCalmDownDialogue();
             }
 
             CancelOpeningDoor();
@@ -559,6 +686,11 @@ namespace FireLink119.NPC
 
             SetState(NPCState.Follow);
             SetCurrentTarget(target);
+
+            if (shouldNotifyFollowInstruction)
+            {
+                FollowInstructionEventId++;
+            }
         }
 
         private void ApplyDestination(int destinationId)
@@ -668,6 +800,7 @@ namespace FireLink119.NPC
             IsCrouching = false;
             DeathType = deathType;
             DeathEventId++;
+            ApplyStopOrDeathInstruction();
 
             SetState(NPCState.Dead);
             FollowPlayer = default;
@@ -718,6 +851,32 @@ namespace FireLink119.NPC
             DialogueClipIndex = dialogueId;
             IsCalmDownDialogue = false;
             DialogueEventId++;
+        }
+
+        private void ApplyDestinationInstruction(int instructionId)
+        {
+            if (instructionId < 0)
+            {
+                return;
+            }
+
+            DestinationInstructionClipId = instructionId;
+            DestinationInstructionEventId++;
+        }
+
+        private void ApplyStopOrDeathInstruction()
+        {
+            int instructionId = DestinationInstructionClipId == 1 ? 1 : 0;
+            int playedMask = 1 << instructionId;
+
+            if ((StopOrDeathInstructionPlayedMask & playedMask) != 0)
+            {
+                return;
+            }
+
+            StopOrDeathInstructionClipId = instructionId;
+            StopOrDeathInstructionPlayedMask |= playedMask;
+            StopOrDeathInstructionEventId++;
         }
 
         private bool CanRequesterControlPlayer(PlayerRef requestedPlayer, PlayerRef requester)
@@ -867,6 +1026,9 @@ namespace FireLink119.NPC
         {
             ApplyDeathEvent();
             ApplyDialogueEvent();
+            ApplyFollowInstructionEvent();
+            ApplyDestinationInstructionEvent();
+            ApplyStopOrDeathInstructionEvent();
         }
 
         private void ApplyDeathEvent()
@@ -922,6 +1084,125 @@ namespace FireLink119.NPC
                 : string.Empty;
 
             PlayDialogue(clip, text);
+        }
+
+        private void ApplyFollowInstructionEvent()
+        {
+            if (FollowInstructionEventId == _lastHandledFollowInstructionEventId)
+            {
+                return;
+            }
+
+            _lastHandledFollowInstructionEventId = FollowInstructionEventId;
+
+            if (_followInstructionClip == null)
+            {
+                return;
+            }
+
+            LocalNarrationAudio.PlayOneShot(_followInstructionClip, _followInstructionVolume);
+        }
+
+        private void ApplyDestinationInstructionEvent()
+        {
+            if (DestinationInstructionEventId == _lastHandledDestinationInstructionEventId)
+            {
+                return;
+            }
+
+            _lastHandledDestinationInstructionEventId = DestinationInstructionEventId;
+            ResolveDestinationInstructionClips(
+                DestinationInstructionClipId,
+                out AudioClip npcClip,
+                out float npcVolume,
+                out AudioClip instructionClip,
+                out float instructionVolume);
+
+            float delay = 0f;
+            if (_audioSource != null && npcClip != null)
+            {
+                _audioSource.PlayOneShot(npcClip, npcVolume);
+                delay = npcClip.length + Mathf.Max(0f, _destinationInstructionDelayPadding);
+            }
+
+            if (instructionClip == null)
+            {
+                return;
+            }
+
+            _pendingDestinationInstructionClip = instructionClip;
+            _pendingDestinationInstructionVolume = instructionVolume;
+            _hasPendingDestinationInstruction = true;
+            _destinationInstructionReadyTime = Time.time + delay;
+        }
+
+        private void TryPlayPendingDestinationInstruction()
+        {
+            if (!_hasPendingDestinationInstruction || Time.time < _destinationInstructionReadyTime)
+            {
+                return;
+            }
+
+            _hasPendingDestinationInstruction = false;
+
+            if (_pendingDestinationInstructionClip != null)
+            {
+                LocalNarrationAudio.PlayOneShot(_pendingDestinationInstructionClip, _pendingDestinationInstructionVolume);
+            }
+        }
+
+        private void ResolveDestinationInstructionClips(
+            int instructionId,
+            out AudioClip npcClip,
+            out float npcVolume,
+            out AudioClip instructionClip,
+            out float instructionVolume)
+        {
+            if (instructionId == 1)
+            {
+                npcClip = _secondDestinationNpcInstructionClip;
+                npcVolume = _secondDestinationNpcInstructionVolume;
+                instructionClip = _secondDestinationInstructionClip;
+                instructionVolume = _secondDestinationInstructionVolume;
+                return;
+            }
+
+            npcClip = _destinationNpcInstructionClip;
+            npcVolume = _destinationNpcInstructionVolume;
+            instructionClip = _destinationInstructionClip;
+            instructionVolume = _destinationInstructionVolume;
+        }
+
+        private void ApplyStopOrDeathInstructionEvent()
+        {
+            if (StopOrDeathInstructionEventId == _lastHandledStopOrDeathInstructionEventId)
+            {
+                return;
+            }
+
+            _lastHandledStopOrDeathInstructionEventId = StopOrDeathInstructionEventId;
+            ResolveStopOrDeathInstructionClip(
+                StopOrDeathInstructionClipId,
+                out AudioClip clip,
+                out float volume);
+
+            if (clip != null)
+            {
+                LocalNarrationAudio.PlayOneShot(clip, volume);
+            }
+        }
+
+        private void ResolveStopOrDeathInstructionClip(int instructionId, out AudioClip clip, out float volume)
+        {
+            if (instructionId == 1)
+            {
+                clip = _secondStopOrDeathInstructionClip;
+                volume = _secondStopOrDeathInstructionVolume;
+                return;
+            }
+
+            clip = _stopOrDeathInstructionClip;
+            volume = _stopOrDeathInstructionVolume;
         }
     }
 }

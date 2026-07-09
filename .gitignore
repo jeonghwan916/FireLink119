@@ -109,3 +109,11 @@ InitTestScene*.unity*
 
 # Project-specific generated font assets
 /Assets/TextMesh Pro/Fonts/Maplestory Bold SDF.asset
+
+# light
+/[Aa]ssets/01_Scenes//*.[Bb]ytes
+/[Aa]ssets/01_Scenes//.lighting
+/[Aa]ssets/01_Scenes/**/_dir.png
+/[Aa]ssets/01_Scenes//*_light.exr
+/[Aa]ssets/01_Scenes//*_shadowmask.png
+/[Aa]ssets/01_Scenes/**/LightingData.asset

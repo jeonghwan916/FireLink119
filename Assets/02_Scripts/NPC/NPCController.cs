@@ -675,7 +675,7 @@ namespace FireLink119.NPC
             if (IsRouteInProgress())
             {
                 ApplyStopOrDeathInstruction();
-                ApplyRandomCalmDownDialogue();
+                //ApplyRandomCalmDownDialogue();
             }
 
             CancelOpeningDoor();

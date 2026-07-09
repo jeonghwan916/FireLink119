@@ -1,9 +1,46 @@
 fileFormatVersion: 2
 guid: 6b7520533304a1941a758afacbcba109
+AssetOrigin:
+  serializedVersion: 1
+  productId: 350664
+  packageName: 'Low-Poly Office Set #2 [+70 Models] [VNB]'
+  packageVersion: 1.1.2
+  assetPath: Assets/VNB - Office Set 2/Models/FBX/Office Set 2.fbx
+  uploadId: 899654
 ModelImporter:
-  serializedVersion: 22200
+  serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Color 1
+    second: {fileID: 2100000, guid: 464f5e50cf0edfb439d81608c1cbb1da, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Door
+    second: {fileID: 2100000, guid: f360206bc52217c4d8893566a64ad9b4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Light
+    second: {fileID: 2100000, guid: 2457785196a328d40bcd3ac700f74e44, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Paintings
+    second: {fileID: 2100000, guid: 37032e637ccab8f49a58fbe88e20ec1a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Palette
+    second: {fileID: 2100000, guid: 3888353d78035a84ea2020acdfc4567f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Screens
+    second: {fileID: 2100000, guid: 512ff77784d8089478c87a19d1f1df17, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -16,8 +53,6 @@ ModelImporter:
     optimizeGameObjects: 0
     removeConstantScaleCurves: 0
     motionNodeName: 
-    rigImportErrors: 
-    rigImportWarnings: 
     animationImportErrors: 
     animationImportWarnings: 
     animationRetargetingWarnings: 
@@ -58,6 +93,9 @@ ModelImporter:
     maxBonesPerVertex: 4
     minBoneWeight: 0.001
     optimizeBones: 1
+    generateMeshLods: 0
+    meshLodGenerationFlags: 0
+    maximumMeshLod: -1
     meshOptimizationFlags: -1
     indexFormat: 0
     secondaryUVAngleDistortion: 8
@@ -107,10 +145,3 @@ ModelImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 350664
-  packageName: 'Low-Poly Office Set #2 [+70 Models] [VNB]'
-  packageVersion: 1.1.2
-  assetPath: Assets/VNB - Office Set 2/Models/FBX/Office Set 2.fbx
-  uploadId: 899654

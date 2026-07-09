@@ -4582,6 +4582,8 @@ GameObject:
   - component: {fileID: 1784275137155168970}
   - component: {fileID: 4786670046360170730}
   - component: {fileID: 919046805746701671}
+  - component: {fileID: 6815081773922796591}
+  - component: {fileID: 6815081773922796592}
   m_Layer: 0
   m_Name: SmokeArea
   m_TagString: Untagged
@@ -4645,3 +4647,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3410d621ca75754ea32dda3dec5b070, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SmokeArea
+--- !u!114 &6815081773922796591
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6815081773922796590}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
+  SortKey: 3630467821
+  ObjectInterest: 1
+  Flags: 262145
+  NestedObjects: []
+  NetworkedBehaviours:
+  - {fileID: 6815081773922796592}
+  ForceRemoteRenderTimeframe: 0
+--- !u!114 &6815081773922796592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6815081773922796590}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7eb2e17e45a4f749b650f60f2fd3501, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FireLink119.Network.NetworkNarrationTrigger
+  _narrationClip: {fileID: 8300000, guid: 2f11780e60406e14d841aeb7e86128b7, type: 3}
+  _volume: 1
+  _playerTag: Player
+  _allowPlayerTagContact: 1

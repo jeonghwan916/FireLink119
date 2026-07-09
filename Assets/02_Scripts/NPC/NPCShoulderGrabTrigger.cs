@@ -116,6 +116,11 @@ namespace FireLink119.NPC
                 return;
             }
 
+            if (!_npcController.CanAcceptShoulderInteraction)
+            {
+                return;
+            }
+
             int cooldownKey = _npcController.GetInstanceID();
             if (NextActivationTimeByNpc.TryGetValue(cooldownKey, out float nextNpcActivationTime) &&
                 Time.time < nextNpcActivationTime)

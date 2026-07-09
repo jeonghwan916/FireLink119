@@ -28,7 +28,10 @@ namespace FireLink119.Extinguisher
         [Header("Safety Pin Instruction")]
         [SerializeField] private AudioClip _safetyPinInstructionClip;
         [SerializeField] private float _safetyPinInstructionVolume = 1f;
-        [SerializeField] private float _safetyPinInstructionDelay = 0.5f;
+
+        [Header("Safety Pin Pulled Instruction")]
+        [SerializeField] private AudioClip _safetyPinPulledInstructionClip;
+        [SerializeField] private float _safetyPinPulledInstructionVolume = 1f;
 
         [Header("Authority")]
         [SerializeField] private float _grabAuthorityRequestTimeout = 0.75f;
@@ -40,6 +43,8 @@ namespace FireLink119.Extinguisher
         [Networked] private PlayerRef HeldBy { get; set; }
         [Networked] private NetworkBool IsSafetyPinPulled { get; set; }
         [Networked] private NetworkBool IsFiring { get; set; }
+        [Networked] private int GrabInstructionEventId { get; set; }
+        [Networked] private int SafetyPinPulledInstructionEventId { get; set; }
 
         public bool IsNetworkReady => _isSpawned && Object != null && Runner != null;
         public bool NetworkIsHeld => IsNetworkReady && IsHeld;
@@ -55,9 +60,8 @@ namespace FireLink119.Extinguisher
         private bool _pendingGrab;
         private float _pendingGrabStartedTime;
         private bool _lastRenderedFiring;
-        private bool _hasPlayedSafetyPinInstruction;
-        private bool _wasHeldByLocalPlayer;
-        private float _safetyPinInstructionReadyTime;
+        private int _lastHandledGrabInstructionEventId;
+        private int _lastHandledSafetyPinPulledInstructionEventId;
 
         private void Awake()
         {
@@ -107,13 +111,14 @@ namespace FireLink119.Extinguisher
                 HeldBy = PlayerRef.None;
                 IsSafetyPinPulled = false;
                 IsFiring = false;
+                GrabInstructionEventId = 0;
+                SafetyPinPulledInstructionEventId = 0;
                 EnsureReleasedPhysicsState();
             }
 
             ApplyNetworkState(force: true);
-            _hasPlayedSafetyPinInstruction = false;
-            _wasHeldByLocalPlayer = false;
-            _safetyPinInstructionReadyTime = 0f;
+            _lastHandledGrabInstructionEventId = GrabInstructionEventId;
+            _lastHandledSafetyPinPulledInstructionEventId = SafetyPinPulledInstructionEventId;
             LogDebug($"Spawned. local={Runner.LocalPlayer}, stateAuthority={Object.StateAuthority}, hasStateAuthority={HasStateAuthority}, isMasterClient={Runner.IsSharedModeMasterClient}");
         }
 
@@ -122,7 +127,6 @@ namespace FireLink119.Extinguisher
             _isSpawned = false;
             _pendingGrab = false;
             _isLocallySelected = false;
-            _wasHeldByLocalPlayer = false;
         }
 
         public void StateAuthorityChanged()
@@ -164,7 +168,7 @@ namespace FireLink119.Extinguisher
             }
 
             ApplyNetworkState(force: false);
-            TryPlaySafetyPinInstruction();
+            ApplyInstructionEvents();
         }
 
         public void RequestPullSafetyPin()
@@ -271,6 +275,11 @@ namespace FireLink119.Extinguisher
 
             IsHeld = true;
             HeldBy = player;
+
+            if (!IsSafetyPinPulled && GrabInstructionEventId == 0)
+            {
+                GrabInstructionEventId++;
+            }
         }
 
         private void SetReleased()
@@ -303,41 +312,17 @@ namespace FireLink119.Extinguisher
                 return;
             }
 
+            if (IsSafetyPinPulled)
+            {
+                return;
+            }
+
             IsSafetyPinPulled = true;
-        }
 
-        private void TryPlaySafetyPinInstruction()
-        {
-            if (_hasPlayedSafetyPinInstruction || _safetyPinInstructionClip == null)
+            if (SafetyPinPulledInstructionEventId == 0)
             {
-                return;
+                SafetyPinPulledInstructionEventId++;
             }
-
-            if (!IsHeldByLocalPlayer)
-            {
-                _wasHeldByLocalPlayer = false;
-                return;
-            }
-
-            if (!_wasHeldByLocalPlayer)
-            {
-                _wasHeldByLocalPlayer = true;
-                _safetyPinInstructionReadyTime = Time.time + Mathf.Max(0f, _safetyPinInstructionDelay);
-            }
-
-            if (Time.time < _safetyPinInstructionReadyTime)
-            {
-                return;
-            }
-
-            _hasPlayedSafetyPinInstruction = true;
-
-            if (NetworkIsSafetyPinPulled)
-            {
-                return;
-            }
-
-            LocalNarrationAudio.PlayOneShot(_safetyPinInstructionClip, _safetyPinInstructionVolume);
         }
 
         private void SetFiring(bool firing)
@@ -462,6 +447,46 @@ namespace FireLink119.Extinguisher
             {
                 _extinguisherSfx.Stop();
             }
+        }
+
+        private void ApplyInstructionEvents()
+        {
+            ApplyGrabInstructionEvent();
+            ApplySafetyPinPulledInstructionEvent();
+        }
+
+        private void ApplyGrabInstructionEvent()
+        {
+            if (GrabInstructionEventId == _lastHandledGrabInstructionEventId)
+            {
+                return;
+            }
+
+            _lastHandledGrabInstructionEventId = GrabInstructionEventId;
+
+            if (_safetyPinInstructionClip == null)
+            {
+                return;
+            }
+
+            LocalNarrationAudio.PlayOneShot(_safetyPinInstructionClip, _safetyPinInstructionVolume);
+        }
+
+        private void ApplySafetyPinPulledInstructionEvent()
+        {
+            if (SafetyPinPulledInstructionEventId == _lastHandledSafetyPinPulledInstructionEventId)
+            {
+                return;
+            }
+
+            _lastHandledSafetyPinPulledInstructionEventId = SafetyPinPulledInstructionEventId;
+
+            if (_safetyPinPulledInstructionClip == null)
+            {
+                return;
+            }
+
+            LocalNarrationAudio.PlayOneShot(_safetyPinPulledInstructionClip, _safetyPinPulledInstructionVolume);
         }
 
         private bool IsHeldByOtherPlayer()

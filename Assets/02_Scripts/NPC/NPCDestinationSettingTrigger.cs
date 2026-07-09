@@ -15,6 +15,10 @@ namespace FireLink119.NPC
         [Header("Dialogue")]
         [SerializeField] private int _dialogueId = InvalidTargetId;
 
+        [Header("Destination Instruction")]
+        [SerializeField] private bool _playDestinationInstruction;
+        [SerializeField] private int _destinationInstructionId;
+
         [Networked] private NetworkBool HasEntered { get; set; }
 
         private void OnTriggerEnter(Collider other)
@@ -31,8 +35,22 @@ namespace FireLink119.NPC
             }
 
             HasEntered = true;
-            RequestDialogue(npcController);
+            RequestDestinationInstruction(npcController);
+
+            if (!_playDestinationInstruction)
+            {
+                RequestDialogue(npcController);
+            }
+
             RequestDestination(npcController);
+        }
+
+        private void RequestDestinationInstruction(NPCController npcController)
+        {
+            if (_playDestinationInstruction)
+            {
+                npcController.RequestPlayDestinationInstruction(_destinationInstructionId);
+            }
         }
 
         private void RequestDialogue(NPCController npcController)

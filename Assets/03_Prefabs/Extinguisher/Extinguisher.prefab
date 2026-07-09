@@ -5389,7 +5389,8 @@ MonoBehaviour:
   _safetyPinSocket: {fileID: 2844583868430011803}
   _safetyPinInstructionClip: {fileID: 8300000, guid: 82177936cbca303488e4bd858f298e3a, type: 3}
   _safetyPinInstructionVolume: 1
-  _safetyPinInstructionDelay: 0.5
+  _safetyPinPulledInstructionClip: {fileID: 8300000, guid: 3344b6ac76eb5364da66b7db12cb8e89, type: 3}
+  _safetyPinPulledInstructionVolume: 1
   _grabAuthorityRequestTimeout: 0.75
   _logDebug: 0
 --- !u!82 &4251285605183337783

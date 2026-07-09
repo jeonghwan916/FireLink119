@@ -7,7 +7,7 @@ namespace FireLink119.Player
     public static class LocalNarrationAudio
     {
         private const string AudioSourceName = "Local Narration Audio";
-        private const float MasterVolumeMultiplier = 1.8f;
+        private const float MasterVolumeMultiplier = 2f;
         private const int AudioPriority = 16;
 
         private static AudioSource _audioSource;

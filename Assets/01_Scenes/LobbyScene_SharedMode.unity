@@ -1518,7 +1518,8 @@ PrefabInstance:
       value: XR Player
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 782446053621567405, guid: 64434a8fabe4fab4ba79ada5e63c0b14, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 64434a8fabe4fab4ba79ada5e63c0b14, type: 3}
